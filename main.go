@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"net"
 	"os"
 	"os/signal"
 	"strconv"
@@ -14,6 +15,7 @@ import (
 	"github.com/lunarway/strong-duckling/internal/http"
 	"github.com/lunarway/strong-duckling/internal/metrics"
 	"github.com/lunarway/strong-duckling/internal/tcpchecker"
+	"github.com/lunarway/strong-duckling/internal/vici"
 	"github.com/lunarway/strong-duckling/internal/whooping"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/log"
@@ -32,6 +34,7 @@ func main() {
 	log.AddFlags(flags)
 	flags.HelpFlag.Short('h')
 	flags.Version(version)
+	socket := flags.Flag("socket", "VPN socket to connect to").Default("/var/run/charon.vici").String()
 	kingpin.MustParse(flags.Parse(os.Args[1:]))
 
 	whooper := whooping.Whooper{}
@@ -129,16 +132,47 @@ func main() {
 		}
 	}()
 
+	go func() {
+		conn, err := net.Dial("unix", *socket)
+		if err != nil {
+			componentDone <- fmt.Errorf("dial socket: %w", err)
+			return
+		}
+		defer conn.Close()
+		client := vici.NewClientConn(conn)
+		defer client.Close()
+
+		// get strongswan version
+		v, err := client.Version()
+		if err != nil {
+			componentDone <- fmt.Errorf("get vici version: %w", err)
+			return
+		}
+		fmt.Printf("Version: %#v\n", v)
+
+		connList, err := client.ListConns("")
+		if err != nil {
+			componentDone <- fmt.Errorf("list vici conns: %w", err)
+			return
+		}
+		fmt.Printf("Connections: %d\n", len(connList))
+		// for _, connection := range connList {
+		// 	// fmt.Printf("  %#v\n", connection)
+		// }
+		componentDone <- nil
+	}()
+
 	reason := <-componentDone
+	close(shutdown)
+	log.Info("waiting for all components to shutdown")
+	shutdownWg.Wait()
 	if reason != nil {
 		log.Errorf("exited due to error: %v", reason)
 	} else {
 		log.Info("exited due to a component shutting down")
 	}
-	close(shutdown)
-	log.Info("waiting for all components to shutdown")
-	shutdownWg.Wait()
 	if reason != nil {
+		log.Errorf("exited due to error: %+v", reason)
 		os.Exit(1)
 	}
 }
