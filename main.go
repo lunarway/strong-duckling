@@ -132,6 +132,22 @@ func main() {
 		}
 	}()
 
+	d := daemon.New(daemon.Configuration{
+		Logger:   log.Base(),
+		Interval: 2 * time.Second,
+		Tick: func() {
+			err := collect(*socket)
+			if err != nil {
+				log.Errorf("Failed to collect strongswan metrics: %v", err)
+			}
+		},
+	})
+
+	go func() {
+		d.Loop(shutdown)
+		componentDone <- nil
+	}()
+
 	go func() {
 		conn, err := net.Dial("unix", *socket)
 		if err != nil {
@@ -171,8 +187,31 @@ func main() {
 	} else {
 		log.Info("exited due to a component shutting down")
 	}
-	if reason != nil {
-		log.Errorf("exited due to error: %+v", reason)
-		os.Exit(1)
+}
+
+func collect(socket string) error {
+	conn, err := net.Dial("unix", socket)
+	if err != nil {
+		return fmt.Errorf("dial socket: %w", err)
 	}
+	defer conn.Close()
+	client := vici.NewClientConn(conn)
+	defer client.Close()
+
+	// get strongswan version
+	v, err := client.Version()
+	if err != nil {
+		return fmt.Errorf("get vici version: %w", err)
+	}
+	log.Infof("Version: %#v", v)
+
+	connList, err := client.ListConns("")
+	if err != nil {
+		return fmt.Errorf("list vici conns: %w", err)
+	}
+	log.Infof("Connections: %d", len(connList))
+	// for _, connection := range connList {
+	// 	// log.Infof("  %#v", connection)
+	// }
+	return nil
 }
