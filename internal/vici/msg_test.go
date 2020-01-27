@@ -3,12 +3,11 @@ package vici
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"reflect"
 	"testing"
 )
 
-func TestMsg(ot *testing.T) {
+func TestReadWriteSegmentEquality(t *testing.T) {
 	for _, msg := range []map[string]interface{}{
 		map[string]interface{}{
 			"a": "1",
@@ -55,21 +54,38 @@ func TestMsg(ot *testing.T) {
 			msg:  msg,
 		}
 		err := writeSegment(buf, in)
-		mustNotError(err)
+		if err != nil {
+			t.Fatalf("failed to write segment: %v", err)
+		}
 		content := buf.Bytes()
 		out, err := readSegment(buf)
-		mustNotError(err)
-		//fmt.Println(content)
+		if err != nil {
+			t.Fatalf("failed to read segment: %v", err)
+		}
 		if !reflect.DeepEqual(in, out) {
 			in1, err := json.Marshal(in.msg)
-			mustNotError(err)
+			if err != nil {
+				t.Fatalf("failed to marshal in message: %v", err)
+			}
 			out1, err := json.Marshal(out.msg)
-			mustNotError(err)
-			fmt.Println(content)
-			panic("!reflect.DeepEqual(in,out)\n" + string(in1) + "\n" + string(out1))
+			if err != nil {
+				t.Fatalf("failed to marshal out message: %v", err)
+			}
+			t.Logf("content: %v", content)
+			t.Fatalf("in/out are not equal:\n%s\n%s", in1, out1)
 		}
 	}
 
+	in := segment{
+		typ: stCMD_RESPONSE,
+		msg: map[string]interface{}{
+			"daemon":  "charon",
+			"machine": "x86_64",
+			"release": "3.13.0-44-generic",
+			"sysname": "Linux",
+			"version": "5.2.2",
+		},
+	}
 	content := []byte{
 		0x0, 0x0, 0x0, 0x5e, //length 94
 		0x1,                                     //CMD_RESPONSE
@@ -83,28 +99,19 @@ func TestMsg(ot *testing.T) {
 		0x38, 0x36, 0x5f, 0x36, 0x34}
 	buf := bytes.NewBuffer(content)
 	out, err := readSegment(buf)
-	mustNotError(err)
-
-	in := segment{
-		typ: stCMD_RESPONSE,
-		msg: map[string]interface{}{
-			"daemon":  "charon",
-			"machine": "x86_64",
-			"release": "3.13.0-44-generic",
-			"sysname": "Linux",
-			"version": "5.2.2",
-		},
+	if err != nil {
+		t.Fatalf("failed to read test segment: %v", err)
 	}
+
 	if !reflect.DeepEqual(in, out) {
 		in1, err := json.Marshal(in.msg)
-		mustNotError(err)
+		if err != nil {
+			t.Fatalf("failed to marshal in msg: %v", err)
+		}
 		out1, err := json.Marshal(out.msg)
-		mustNotError(err)
-		panic("!reflect.DeepEqual(in,out)\n" + string(in1) + "\n" + string(out1))
-	}
-}
-func mustNotError(err error) {
-	if err != nil {
-		panic(err)
+		if err != nil {
+			t.Fatalf("failed to marshal out msg: %v", err)
+		}
+		t.Fatalf("in/out are not equal:\n%s\n%s", in1, out1)
 	}
 }

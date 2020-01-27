@@ -30,8 +30,8 @@ func (c *ClientConn) Close() error {
 	return c.conn.Close()
 }
 
-func NewClientConn(conn net.Conn) (client *ClientConn) {
-	client = &ClientConn{
+func NewClientConn(conn net.Conn) *ClientConn {
+	client := &ClientConn{
 		conn:          conn,
 		responseChan:  make(chan segment, 2),
 		eventHandlers: map[string]func(response map[string]interface{}){},
@@ -42,28 +42,27 @@ func NewClientConn(conn net.Conn) (client *ClientConn) {
 }
 
 // it dial from unix:///var/run/charon.vici
-func NewClientConnFromDefaultSocket() (client *ClientConn, err error) {
+func NewClientConnFromDefaultSocket() (*ClientConn, error) {
 	conn, err := net.Dial("unix", "/var/run/charon.vici")
 	if err != nil {
-		return
+		return nil, err
 	}
 	return NewClientConn(conn), nil
 }
 
-func (c *ClientConn) Request(apiname string, request map[string]interface{}) (response map[string]interface{}, err error) {
-	err = writeSegment(c.conn, segment{
+func (c *ClientConn) Request(apiname string, request map[string]interface{}) (map[string]interface{}, error) {
+	err := writeSegment(c.conn, segment{
 		typ:  stCMD_REQUEST,
 		name: apiname,
 		msg:  request,
 	})
 	if err != nil {
-		fmt.Printf("error writing segment \n")
-		return
+		return nil, fmt.Errorf("writing segment: %w", err)
 	}
 
 	outMsg := c.readResponse()
 	if c.lastError != nil {
-		return nil, c.lastError
+		return nil, fmt.Errorf("read response: %w", c.lastError)
 	}
 	if outMsg.typ != stCMD_RESPONSE {
 		return nil, fmt.Errorf("[%s] response error %d", apiname, outMsg.typ)
@@ -77,30 +76,29 @@ func (c *ClientConn) readResponse() segment {
 		return outMsg
 	case <-time.After(c.ReadTimeout):
 		if c.lastError == nil {
-			c.lastError = fmt.Errorf("Timeout waiting for message response")
+			c.lastError = fmt.Errorf("timeout waiting for message response")
 		}
 		return segment{}
 	}
 }
 
-func (c *ClientConn) RegisterEvent(name string, handler func(response map[string]interface{})) (err error) {
+func (c *ClientConn) RegisterEvent(name string, handler func(response map[string]interface{})) error {
 	if c.eventHandlers[name] != nil {
-		return fmt.Errorf("[event %s] register a event twice.", name)
+		return fmt.Errorf("[event %s] register an event twice.", name)
 	}
 	c.eventHandlers[name] = handler
-	err = writeSegment(c.conn, segment{
+	err := writeSegment(c.conn, segment{
 		typ:  stEVENT_REGISTER,
 		name: name,
 	})
 	if err != nil {
 		delete(c.eventHandlers, name)
-		return
+		return fmt.Errorf("write segment: %w", err)
 	}
 	outMsg := c.readResponse()
-	//fmt.Printf("registerEvent %#v\n", outMsg)
 	if c.lastError != nil {
 		delete(c.eventHandlers, name)
-		return c.lastError
+		return fmt.Errorf("read response: %w", c.lastError)
 	}
 
 	if outMsg.typ != stEVENT_CONFIRM {
@@ -110,18 +108,17 @@ func (c *ClientConn) RegisterEvent(name string, handler func(response map[string
 	return nil
 }
 
-func (c *ClientConn) UnregisterEvent(name string) (err error) {
-	err = writeSegment(c.conn, segment{
+func (c *ClientConn) UnregisterEvent(name string) error {
+	err := writeSegment(c.conn, segment{
 		typ:  stEVENT_UNREGISTER,
 		name: name,
 	})
 	if err != nil {
-		return
+		return fmt.Errorf("write segment: %w", err)
 	}
 	outMsg := c.readResponse()
-	//fmt.Printf("UnregisterEvent %#v\n", outMsg)
 	if c.lastError != nil {
-		return c.lastError
+		return fmt.Errorf("read response: %w", c.lastError)
 	}
 
 	if outMsg.typ != stEVENT_CONFIRM {

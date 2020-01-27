@@ -1,7 +1,6 @@
 package vici
 
 import (
-	"fmt"
 	"strconv"
 )
 
@@ -82,26 +81,24 @@ func (s *Child_sas) GetBytesOut() uint64 {
 // To be simple, list all clients that are connecting to this server .
 // A client is a sa.
 // Lists currently active IKE_SAs
-func (c *ClientConn) ListSas(ike string, ike_id string) (sas []map[string]IkeSa, err error) {
-	sas = []map[string]IkeSa{}
+func (c *ClientConn) ListSas(ike string, ike_id string) ([]map[string]IkeSa, error) {
+	sas := []map[string]IkeSa{}
 	var eventErr error
 	//register event
-	err = c.RegisterEvent("list-sa", func(response map[string]interface{}) {
+	err := c.RegisterEvent("list-sa", func(response map[string]interface{}) {
 		sa := &map[string]IkeSa{}
-		err = ConvertFromGeneral(response, sa)
+		err := ConvertFromGeneral(response, sa)
 		if err != nil {
-			fmt.Printf("list-sa event error: %s\n", err)
 			eventErr = err
 			return
 		}
 		sas = append(sas, *sa)
-		//fmt.Printf("event %#v\n", response)
 	})
 	if err != nil {
-		return
+		return nil, err
 	}
 	if eventErr != nil {
-		return
+		return nil, eventErr
 	}
 
 	inMap := map[string]interface{}{}
@@ -113,19 +110,19 @@ func (c *ClientConn) ListSas(ike string, ike_id string) (sas []map[string]IkeSa,
 	}
 	_, err = c.Request("list-sas", inMap)
 	if err != nil {
-		return
+		return nil, err
 	}
-	//fmt.Printf("request finish %#v\n", sas)
 	err = c.UnregisterEvent("list-sa")
 	if err != nil {
-		return
+		return nil, err
 	}
-	return
+	return sas, nil
 }
 
 //a vpn conn in the strongswan server
 type VpnConnInfo struct {
 	IkeSa
+	// FIXME: This looks wrong. JSON keys between IkeSa and Child_sas are conflicting.
 	Child_sas
 	IkeSaName   string //looks like conn name in ipsec.conf, content is same as ChildSaName
 	ChildSaName string //looks like conn name in ipsec.conf
@@ -143,23 +140,17 @@ func (c *VpnConnInfo) GuessUserName() string {
 
 // a helper method to avoid complex data struct in ListSas
 // if it only have one child_sas ,it will put it into info.Child_sas
-func (c *ClientConn) ListAllVpnConnInfo() (list []VpnConnInfo, err error) {
+func (c *ClientConn) ListAllVpnConnInfo() ([]VpnConnInfo, error) {
 	sasList, err := c.ListSas("", "")
 	if err != nil {
-		return
+		return nil, err
 	}
-	list = make([]VpnConnInfo, len(sasList))
+	list := make([]VpnConnInfo, len(sasList))
 	for i, sa := range sasList {
 		info := VpnConnInfo{}
-		if len(sa) != 1 {
-			fmt.Printf("[vici.ListAllVpnConnInfo] warning: len(sa)[%d]!=1\n", len(sa))
-		}
 		for ikeSaName, ikeSa := range sa {
 			info.IkeSaName = ikeSaName
 			info.IkeSa = ikeSa
-			//if len(ikeSa.Child_sas) != 1 {
-			//	fmt.Println("[vici.ListAllVpnConnInfo] warning: len(ikeSa.Child_sas)[%d]!=1", len(ikeSa.Child_sas))
-			//}
 			for childSaName, childSa := range ikeSa.Child_sas {
 				info.ChildSaName = childSaName
 				info.Child_sas = childSa
@@ -172,5 +163,5 @@ func (c *ClientConn) ListAllVpnConnInfo() (list []VpnConnInfo, err error) {
 		}
 		list[i] = info
 	}
-	return
+	return list, nil
 }

@@ -24,7 +24,6 @@ type keyList struct {
 // load a shared secret into the IKE daemon
 func (c *ClientConn) LoadShared(key *Key) error {
 	requestMap := &map[string]interface{}{}
-
 	err := ConvertToGeneral(key, requestMap)
 	if err != nil {
 		return fmt.Errorf("error creating request: %v", err)
@@ -44,9 +43,7 @@ func (c *ClientConn) LoadShared(key *Key) error {
 // unload (delete) a shared secret from the IKE daemon
 func (c *ClientConn) UnloadShared(key *UnloadKeyRequest) error {
 	requestMap := &map[string]interface{}{}
-
 	err := ConvertToGeneral(key, requestMap)
-
 	if err != nil {
 		return fmt.Errorf("error creating request: %v", err)
 	}
@@ -76,5 +73,5 @@ func (c *ClientConn) GetShared() ([]string, error) {
 		return nil, fmt.Errorf("convert msg: %w", err)
 	}
 
-	return keys.Keys, err
+	return keys.Keys, nil
 }

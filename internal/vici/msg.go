@@ -63,11 +63,11 @@ type segment struct {
 	msg  map[string]interface{}
 }
 
-//msg 在内部以下列3种类型表示(降低复杂度)
-// string
-// map[string]interface{}
-// []string
-func writeSegment(w io.Writer, msg segment) (err error) {
+// msg can be of three types
+// - string
+// - map[string]interface{}
+// - []string
+func writeSegment(w io.Writer, msg segment) error {
 	if !msg.typ.isValid() {
 		return fmt.Errorf("[writeSegment] msg.typ %d not defined", msg.typ)
 	}
@@ -76,53 +76,51 @@ func writeSegment(w io.Writer, msg segment) (err error) {
 
 	//name
 	if msg.typ.hasName() {
-		err = writeString1(buf, msg.name)
+		err := writeString1(buf, msg.name)
 		if err != nil {
-			fmt.Printf("error returned from writeString1i \n")
-			return
+			return fmt.Errorf("write string1 to buffer: %w", err)
 		}
 	}
 
 	if msg.typ.hasMsg() {
-		err = writeMap(buf, msg.msg)
+		err := writeMap(buf, msg.msg)
 		if err != nil {
-			fmt.Printf("error retruned from writeMap \n")
-			return
+			return fmt.Errorf("write map to buffer: %w", err)
 		}
 	}
 
-	//写长度
-	err = binary.Write(w, binary.BigEndian, uint32(buf.Len()))
+	// write length of segment to output
+	err := binary.Write(w, binary.BigEndian, uint32(buf.Len()))
 	if err != nil {
-		fmt.Printf("[writeSegment] error writing to binary \n")
-		return
+		return fmt.Errorf("write length: %w", err)
 	}
 
+	// write msg to output
 	_, err = buf.WriteTo(w)
 	if err != nil {
-		fmt.Printf("[writeSegment] error writing to buffer \n")
-		return
+		return fmt.Errorf("write segment: %w", err)
 	}
 
 	return nil
 }
 
-func readSegment(inR io.Reader) (msg segment, err error) {
-	//长度
+func readSegment(inR io.Reader) (segment, error) {
+	// read length of segment
 	var length uint32
-	err = binary.Read(inR, binary.BigEndian, &length)
+	err := binary.Read(inR, binary.BigEndian, &length)
 	if err != nil {
-		return
+		return segment{}, fmt.Errorf("read length: %w", err)
 	}
 	r := bufio.NewReader(&io.LimitedReader{
 		R: inR,
 		N: int64(length),
 	})
-	//类型
+	// read type of segment
 	c, err := r.ReadByte()
 	if err != nil {
-		return
+		return segment{}, fmt.Errorf("read type: %w", err)
 	}
+	var msg segment
 	msg.typ = segmentType(c)
 	if !msg.typ.isValid() {
 		return msg, fmt.Errorf("[readSegment] msg.typ %d not defined", msg.typ)
@@ -130,149 +128,173 @@ func readSegment(inR io.Reader) (msg segment, err error) {
 	if msg.typ.hasName() {
 		msg.name, err = readString1(r)
 		if err != nil {
-			return
+			return segment{}, fmt.Errorf("read string1: %w", err)
 		}
 	}
 	if msg.typ.hasMsg() {
 		msg.msg, err = readMap(r, true)
 		if err != nil {
-			return
+			return segment{}, fmt.Errorf("read map: %w", err)
 		}
 	}
-	return
+	return msg, nil
 }
 
-//一个字节长度的字符串
-func writeString1(w *bytes.Buffer, s string) (err error) {
+// writeString1 writes string s in a single byte.
+func writeString1(w *bytes.Buffer, s string) error {
 	length := len(s)
 	if length > 255 {
-		return fmt.Errorf("[writeString1] length>255")
+		return fmt.Errorf("[writeString1] string length over 255 characters (1 byte)")
 	}
 	w.WriteByte(byte(length))
-	w.WriteString(s)
-	return
+	_, err := w.WriteString(s)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
-func readString1(r *bufio.Reader) (s string, err error) {
+// readString1 reads one byte from r.
+func readString1(r *bufio.Reader) (string, error) {
 	length, err := r.ReadByte()
 	if err != nil {
-		return
+		return "", err
 	}
 	buf := make([]byte, length)
 	_, err = io.ReadFull(r, buf)
 	if err != nil {
-		return
+		return "", err
 	}
 	return string(buf), nil
 }
 
-//两个字节长度的字符串
-func writeString2(w *bytes.Buffer, s string) (err error) {
+// writeString2 writes string s in a two bytes.
+func writeString2(w *bytes.Buffer, s string) error {
 	length := len(s)
 	if length > 65535 {
-		return fmt.Errorf("[writeString2] length>65535")
+		return fmt.Errorf("[writeString2] string length over 65535 characters (2 bytes)")
 	}
-	binary.Write(w, binary.BigEndian, uint16(length))
-	w.WriteString(s)
-	return
+	err := binary.Write(w, binary.BigEndian, uint16(length))
+	if err != nil {
+		return err
+	}
+	_, err = w.WriteString(s)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
-func readString2(r io.Reader) (s string, err error) {
+// readString2 reads two bytes from r.
+func readString2(r io.Reader) (string, error) {
 	var length uint16
-	err = binary.Read(r, binary.BigEndian, &length)
+	err := binary.Read(r, binary.BigEndian, &length)
 	if err != nil {
-		return
+		return "", err
 	}
 	buf := make([]byte, length)
 	_, err = io.ReadFull(r, buf)
 	if err != nil {
-		return
+		return "", err
 	}
 	return string(buf), nil
 }
 
-func writeKeyMap(w *bytes.Buffer, name string, msg map[string]interface{}) (err error) {
+func writeKeyMap(w *bytes.Buffer, name string, msg map[string]interface{}) error {
 	w.WriteByte(byte(etSECTION_START))
-	err = writeString1(w, name)
+	err := writeString1(w, name)
 	if err != nil {
-		return
+		return err
 	}
-	writeMap(w, msg)
+	err = writeMap(w, msg)
+	if err != nil {
+		return err
+	}
 	w.WriteByte(byte(etSECTION_END))
 	return nil
 }
 
-func writeKeyList(w *bytes.Buffer, name string, msg []string) (err error) {
+func writeKeyList(w *bytes.Buffer, name string, msg []string) error {
 	w.WriteByte(byte(etLIST_START))
-	err = writeString1(w, name)
+	err := writeString1(w, name)
 	if err != nil {
-		return
+		return err
 	}
 	for _, s := range msg {
 		w.WriteByte(byte(etLIST_ITEM))
 		err = writeString2(w, s)
 		if err != nil {
-			return
+			return err
 		}
 	}
 	w.WriteByte(byte(etLIST_END))
 	return nil
 }
 
-func writeKeyString(w *bytes.Buffer, name string, msg string) (err error) {
+func writeKeyString(w *bytes.Buffer, name string, msg string) error {
 	w.WriteByte(byte(etKEY_VALUE))
-	err = writeString1(w, name)
+	err := writeString1(w, name)
 	if err != nil {
-		return
+		return err
 	}
 	err = writeString2(w, msg)
-	return
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
-func writeMap(w *bytes.Buffer, msg map[string]interface{}) (err error) {
+func writeMap(w *bytes.Buffer, msg map[string]interface{}) error {
 	for k, v := range msg {
+		var err error
 		switch t := v.(type) {
 		case map[string]interface{}:
-			writeKeyMap(w, k, t)
+			err = writeKeyMap(w, k, t)
 		case []string:
-			writeKeyList(w, k, t)
+			err = writeKeyList(w, k, t)
 		case string:
-			writeKeyString(w, k, t)
+			err = writeKeyString(w, k, t)
 		case []interface{}:
 			str := make([]string, len(t))
 			for i := range t {
 				str[i] = t[i].(string)
 			}
-			writeKeyList(w, k, str)
+			err = writeKeyList(w, k, str)
 		default:
 			return fmt.Errorf("[writeMap] can not write type %T right now", msg)
+		}
+		if err != nil {
+			return err
 		}
 	}
 	return nil
 }
 
 //SECTION_START has been read already.
-func readKeyMap(r *bufio.Reader) (key string, msg map[string]interface{}, err error) {
-	key, err = readString1(r)
+func readKeyMap(r *bufio.Reader) (string, map[string]interface{}, error) {
+	key, err := readString1(r)
 	if err != nil {
-		return
+		return "", nil, err
 	}
-	msg, err = readMap(r, false)
-	return
+	msg, err := readMap(r, false)
+	if err != nil {
+		return "", nil, err
+	}
+	return key, msg, nil
 }
 
 //LIST_START has been read already.
-func readKeyList(r *bufio.Reader) (key string, msg []string, err error) {
-	key, err = readString1(r)
+func readKeyList(r *bufio.Reader) (string, []string, error) {
+	key, err := readString1(r)
 	if err != nil {
-		return
+		return "", nil, err
 	}
-	msg = []string{}
+	msg := []string{}
 	for {
 		var c byte
 		c, err = r.ReadByte()
 		if err != nil {
-			return
+			return "", nil, err
 		}
 		switch elementType(c) {
 		case etLIST_ITEM:
@@ -290,16 +312,16 @@ func readKeyList(r *bufio.Reader) (key string, msg []string, err error) {
 }
 
 //KEY_VALUE has been read already.
-func readKeyString(r *bufio.Reader) (key string, msg string, err error) {
-	key, err = readString1(r)
+func readKeyString(r *bufio.Reader) (string, string, error) {
+	key, err := readString1(r)
 	if err != nil {
-		return
+		return "", "", err
 	}
-	msg, err = readString2(r)
+	msg, err := readString2(r)
 	if err != nil {
-		return
+		return "", "", err
 	}
-	return
+	return key, msg, nil
 }
 
 // Since the original key chosen can have duplicates,
@@ -319,8 +341,8 @@ func getNewKeyToHandleDuplicates(key string, msg map[string]interface{}) string 
 }
 
 //SECTION_START has been read already.
-func readMap(r *bufio.Reader, isRoot bool) (msg map[string]interface{}, err error) {
-	msg = map[string]interface{}{}
+func readMap(r *bufio.Reader, isRoot bool) (map[string]interface{}, error) {
+	msg := map[string]interface{}{}
 	for {
 		c, err := r.ReadByte()
 		if err == io.EOF && isRoot { //may be root section
@@ -351,8 +373,7 @@ func readMap(r *bufio.Reader, isRoot bool) (msg map[string]interface{}, err erro
 		case etSECTION_END: //end of outer section
 			return msg, nil
 		default:
-			panic(fmt.Errorf("[readMap] protocol error 1, %d %#v", c, msg))
-			//return nil, fmt.Errorf("[readMap] protocol error 1, %d",c)
+			return nil, fmt.Errorf("[readMap] protocol error 1, %d", c)
 		}
 	}
 }

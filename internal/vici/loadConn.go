@@ -71,7 +71,7 @@ func (a *AuthConf) SetPublicKeys(keys []crypto.PublicKey) error {
 	for _, key := range keys {
 		asn1Bytes, err := x509.MarshalPKIXPublicKey(key)
 		if err != nil {
-			return fmt.Errorf("Error marshaling key: %v", err)
+			return fmt.Errorf("marshal key: %w", err)
 		}
 		pemKey := pem.Block{
 			Type:  "PUBLIC KEY",
@@ -89,12 +89,14 @@ func (c *ClientConn) LoadConn(conn *map[string]IKEConf) error {
 	requestMap := &map[string]interface{}{}
 
 	err := ConvertToGeneral(conn, requestMap)
-
 	if err != nil {
-		return fmt.Errorf("error creating request: %v", err)
+		return fmt.Errorf("convert to general: %w", err)
 	}
 
 	msg, err := c.Request("load-conn", *requestMap)
+	if err != nil {
+		return fmt.Errorf("request: %w", err)
+	}
 	if msg["success"] != "yes" {
 		return fmt.Errorf("unsuccessful LoadConn: %v", msg["errmsg"])
 	}

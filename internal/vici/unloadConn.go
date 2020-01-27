@@ -10,7 +10,10 @@ type UnloadConnRequest struct {
 
 func (c *ClientConn) UnloadConn(r *UnloadConnRequest) error {
 	reqMap := &map[string]interface{}{}
-	ConvertToGeneral(r, reqMap)
+	err := ConvertToGeneral(r, reqMap)
+	if err != nil {
+		return err
+	}
 	msg, err := c.Request("unload-conn", *reqMap)
 	if err != nil {
 		return err

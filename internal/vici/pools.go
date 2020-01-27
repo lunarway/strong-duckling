@@ -18,12 +18,9 @@ type PoolMapping struct {
 
 func (c *ClientConn) LoadPool(ph Pool) error {
 	requestMap := map[string]interface{}{}
-
 	err := ConvertToGeneral(ph.PoolMapping, &requestMap)
-
 	if err != nil {
-		fmt.Println(err)
-		return fmt.Errorf("error creating request: %v", err)
+		return fmt.Errorf("error creating request: %w", err)
 	}
 
 	msg, err := c.Request("load-pool", requestMap)

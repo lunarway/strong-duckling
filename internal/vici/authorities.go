@@ -24,7 +24,6 @@ func (c *ClientConn) LoadAuthority(auth Authorities) error {
 
 	err := ConvertToGeneral(auth.AuthorityMapping, &requestMap)
 	if err != nil {
-		fmt.Println(err)
 		return fmt.Errorf("error creating request: %v", err)
 	}
 
@@ -59,5 +58,4 @@ func (c *ClientConn) UnloadAuthority(r *UnloadAuthorityRequest) error {
 	}
 
 	return nil
-
 }

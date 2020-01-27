@@ -1,8 +1,7 @@
 package vici
 
 import (
-	"bytes"
-	"encoding/json"
+	"fmt"
 	"time"
 )
 
@@ -152,15 +151,9 @@ type EventInfo struct {
 	Ike map[string]*EventIkeSa
 }
 
-func prettyprint(b []byte) string {
-	var out bytes.Buffer
-	json.Indent(&out, b, "", "  ")
-	return string(out.Bytes())
-}
-
 type MonitorCallBack func(event string, info interface{})
 
-func handleIkeUpDown(eventName string, callback MonitorCallBack, response map[string]interface{}) {
+func handleIkeUpDown(eventName string, callback MonitorCallBack, response map[string]interface{}) error {
 	event := &EventIkeUpDown{}
 	event.Ike = map[string]*EventIkeSAUpDown{}
 	//we need to marshall all ikes manual because json uses connections names as key
@@ -170,27 +163,35 @@ func handleIkeUpDown(eventName string, callback MonitorCallBack, response map[st
 			event.Up = true
 		} else {
 			sa := &EventIkeSAUpDown{}
-			ConvertFromGeneral(value, sa)
+			err := ConvertFromGeneral(value, sa)
+			if err != nil {
+				return fmt.Errorf("convert from general: %w", err)
+			}
 			event.Ike[name] = sa
 		}
 	}
 	callback(eventName, event)
+	return nil
 }
 
-func handleIkeRekey(eventName string, callback MonitorCallBack, response map[string]interface{}) {
+func handleIkeRekey(eventName string, callback MonitorCallBack, response map[string]interface{}) error {
 	event := &EventIkeRekey{}
 	event.Ike = map[string]*EventIkeRekeyPair{}
 	//we need to marshall all ikes manual because json uses connections names as key
 	for name := range response {
 		value := response[name]
 		sa := &EventIkeRekeyPair{}
-		ConvertFromGeneral(value, sa)
+		err := ConvertFromGeneral(value, sa)
+		if err != nil {
+			return fmt.Errorf("convert from general: %w", err)
+		}
 		event.Ike[name] = sa
 	}
 	callback(eventName, event)
+	return nil
 }
 
-func handleChildUpDown(eventName string, callback MonitorCallBack, response map[string]interface{}) {
+func handleChildUpDown(eventName string, callback MonitorCallBack, response map[string]interface{}) error {
 	event := &EventChildUpDown{}
 	event.Ike = map[string]*EventIkeSAUpDown{}
 	//we need to marshall all ikes manual because json uses connections names as key
@@ -200,44 +201,72 @@ func handleChildUpDown(eventName string, callback MonitorCallBack, response map[
 			event.Up = true
 		} else {
 			sa := &EventIkeSAUpDown{}
-			ConvertFromGeneral(value, sa)
+			err := ConvertFromGeneral(value, sa)
+			if err != nil {
+				return fmt.Errorf("convert from general: %w", err)
+			}
 			event.Ike[name] = sa
 		}
 	}
 	callback(eventName, event)
+	return nil
 }
 
-func handleChildRekey(eventName string, callback MonitorCallBack, response map[string]interface{}) {
+func handleChildRekey(eventName string, callback MonitorCallBack, response map[string]interface{}) error {
 	event := &EventChildRekey{}
 	event.Ike = map[string]*EventIkeRekeySA{}
 	//we need to marshall all ikes manual because json uses connections names as key
 	for name := range response {
 		value := response[name]
 		sa := &EventIkeRekeySA{}
-		ConvertFromGeneral(value, sa)
+		err := ConvertFromGeneral(value, sa)
+		if err != nil {
+			return fmt.Errorf("convert from general: %w", err)
+		}
 		event.Ike[name] = sa
 	}
 	callback(eventName, event)
+	return nil
 }
 
 func (c *ClientConn) MonitorSA(callback MonitorCallBack, watchdog time.Duration) (err error) {
 	//register event
-	c.RegisterEvent(EVENT_CHILD_UPDOWN, func(response map[string]interface{}) {
-		//dumpResponse(response)
-		handleChildUpDown(EVENT_CHILD_UPDOWN, callback, response)
+	err = c.RegisterEvent(EVENT_CHILD_UPDOWN, func(response map[string]interface{}) {
+		err := handleChildUpDown(EVENT_CHILD_UPDOWN, callback, response)
+		if err != nil {
+			fmt.Printf("Failed to handle EVENT_CHILD_UPDOWN: %v\n", err)
+		}
 	})
-	c.RegisterEvent(EVENT_CHILD_REKEY, func(response map[string]interface{}) {
-		//dumpResponse(response)
-		handleChildRekey(EVENT_CHILD_REKEY, callback, response)
+	if err != nil {
+		return err
+	}
+	err = c.RegisterEvent(EVENT_CHILD_REKEY, func(response map[string]interface{}) {
+		err := handleChildRekey(EVENT_CHILD_REKEY, callback, response)
+		if err != nil {
+			fmt.Printf("Failed to handle EVENT_CHILD_REKEY: %v\n", err)
+		}
 	})
-	c.RegisterEvent(EVENT_IKE_UPDOWN, func(response map[string]interface{}) {
-		//dumpResponse(response)
-		handleIkeUpDown(EVENT_IKE_UPDOWN, callback, response)
+	if err != nil {
+		return err
+	}
+	err = c.RegisterEvent(EVENT_IKE_UPDOWN, func(response map[string]interface{}) {
+		err := handleIkeUpDown(EVENT_IKE_UPDOWN, callback, response)
+		if err != nil {
+			fmt.Printf("Failed to handle EVENT_IKE_UPDOWN: %v\n", err)
+		}
 	})
-	c.RegisterEvent(EVENT_IKE_REKEY, func(response map[string]interface{}) {
-		//dumpResponse(response)
-		handleIkeRekey(EVENT_IKE_REKEY, callback, response)
+	if err != nil {
+		return err
+	}
+	err = c.RegisterEvent(EVENT_IKE_REKEY, func(response map[string]interface{}) {
+		err := handleIkeRekey(EVENT_IKE_REKEY, callback, response)
+		if err != nil {
+			fmt.Printf("Failed to handle EVENT_IKE_REKEY: %v\n", err)
+		}
 	})
+	if err != nil {
+		return err
+	}
 
 	for {
 		time.Sleep(watchdog)
@@ -246,5 +275,4 @@ func (c *ClientConn) MonitorSA(callback MonitorCallBack, watchdog time.Duration)
 			return err
 		}
 	}
-	return nil
 }

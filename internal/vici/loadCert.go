@@ -10,7 +10,7 @@ type certPayload struct {
 	Data string `json:"data"`
 }
 
-func (c *ClientConn) LoadCertificate(s string, typ string, flag string) (err error) {
+func (c *ClientConn) LoadCertificate(s string, typ string, flag string) error {
 	requestMap := &map[string]interface{}{}
 
 	var k = certPayload{
@@ -18,15 +18,14 @@ func (c *ClientConn) LoadCertificate(s string, typ string, flag string) (err err
 		Flag: flag,
 		Data: s,
 	}
-
-	if err = ConvertToGeneral(k, requestMap); err != nil {
-		return fmt.Errorf("error creating request: %v", err)
+	err := ConvertToGeneral(k, requestMap)
+	if err != nil {
+		return fmt.Errorf("error creating request: %w", err)
 	}
 
 	msg, err := c.Request("load-cert", *requestMap)
-
 	if err != nil {
-		return fmt.Errorf("unsuccessful loadCert: %v", err.Error())
+		return fmt.Errorf("unsuccessful loadCert: %w", err)
 	}
 
 	if msg["success"] != "yes" {

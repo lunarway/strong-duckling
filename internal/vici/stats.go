@@ -49,11 +49,11 @@ type Stats struct {
 
 // Stats returns IKE daemon statistics and load information.
 func (c *ClientConn) Stats() (Stats, error) {
-	var stats Stats
 	msg, err := c.Request("stats", nil)
 	if err != nil {
 		return Stats{}, err
 	}
+	var stats Stats
 	err = ConvertFromGeneral(msg, &stats)
 	if err != nil {
 		return Stats{}, err

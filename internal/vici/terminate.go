@@ -16,18 +16,18 @@ type TerminateRequest struct {
 
 // To be simple, kill a client that is connecting to this server. A client is a sa.
 //Terminates an SA while streaming control-log events.
-func (c *ClientConn) Terminate(r *TerminateRequest) (err error) {
-	err = handlePanic(func() (err error) {
-		reqMap := &map[string]interface{}{}
-		ConvertToGeneral(r, reqMap)
-		msg, err := c.Request("terminate", *reqMap)
-		if err != nil {
-			return
-		}
-		if msg["success"] != "yes" {
-			return fmt.Errorf("[Terminate] %s", msg["errmsg"])
-		}
-		return
-	})
-	return
+func (c *ClientConn) Terminate(r *TerminateRequest) error {
+	reqMap := &map[string]interface{}{}
+	err := ConvertToGeneral(r, reqMap)
+	if err != nil {
+		return err
+	}
+	msg, err := c.Request("terminate", *reqMap)
+	if err != nil {
+		return err
+	}
+	if msg["success"] != "yes" {
+		return fmt.Errorf("[Terminate] %s", msg["errmsg"])
+	}
+	return nil
 }
