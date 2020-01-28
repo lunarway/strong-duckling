@@ -4,8 +4,11 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
+	"time"
 
+	"github.com/lunarway/strong-duckling/internal/daemon"
 	"github.com/lunarway/strong-duckling/internal/http"
 	"github.com/lunarway/strong-duckling/internal/metrics"
 	"github.com/lunarway/strong-duckling/internal/whooping"
@@ -26,35 +29,60 @@ func main() {
 	flags.Version(version)
 	kingpin.MustParse(flags.Parse(os.Args[1:]))
 
-	done := make(chan error, 1)
-
 	whooper := whooping.Whooper{}
 
 	server := http.Define()
 	whooper.RegisterListener(server, fmt.Sprintf("http://localhost%s", *listenAddress))
 	metrics.Register(server)
 
+	componentDone := make(chan error)
+	shutdown := make(chan struct{})
+	var shutdownWg sync.WaitGroup
+
 	if whoopingAddress != nil && *whoopingAddress != "" {
-		whooper.StartWhooping(*whoopingAddress, fmt.Sprintf("http://localhost%s", *listenAddress))
+		whoopDaemon := daemon.New(daemon.Configuration{
+			Logger:   log.With("name", "whooper"),
+			Interval: 1 * time.Second,
+			Tick: func() {
+				whooper.Whoop(*whoopingAddress, fmt.Sprintf("http://localhost%s", *listenAddress))
+			},
+		})
+
+		shutdownWg.Add(1)
+		go func() {
+			defer shutdownWg.Done()
+			whoopDaemon.Loop(shutdown)
+		}()
 	}
 
-	//defer http.Stop()
 	go func() {
-		done <- http.Start(server, *listenAddress)
+		// no shutdown mechanism in place for the HTTP server
+		componentDone <- http.Start(server, *listenAddress)
 	}()
 
-	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+	shutdownWg.Add(1)
 	go func() {
-		sig := <-sigs
-		log.Infof("Received os signal '%s'. Terminating...", sig)
-		done <- nil
+		defer shutdownWg.Done()
+		sigs := make(chan os.Signal, 1)
+		signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+		select {
+		case sig := <-sigs:
+			log.Infof("Received os signal '%s'. Terminating...", sig)
+			componentDone <- nil
+		case <-shutdown:
+		}
 	}()
 
-	reason := <-done
+	reason := <-componentDone
 	if reason != nil {
 		log.Errorf("exited due to error: %v", reason)
+	} else {
+		log.Info("exited due to a component shutting down")
+	}
+	close(shutdown)
+	log.Info("waiting for all components to shutdown")
+	shutdownWg.Wait()
+	if reason != nil {
 		os.Exit(1)
 	}
-	log.Debug("exited with exit 0")
 }

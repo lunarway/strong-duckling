@@ -49,56 +49,51 @@ func (whooper *Whooper) RegisterListener(serveMux *http.ServeMux, listeningAddre
 	})
 }
 
-func (whooper *Whooper) StartWhooping(endpoint string, listeningEndpoint string) {
-	go func() {
-		for true {
-			log.Debugf("Sending whoop to %s with address %s", endpoint, listeningEndpoint)
-			fullEndpoint := endpoint + "/whoop"
+func (whooper *Whooper) Whoop(endpoint string, listeningEndpoint string) {
+	log.Debugf("Sending whoop to %s with address %s", endpoint, listeningEndpoint)
+	fullEndpoint := endpoint + "/whoop"
 
-			now := time.Now()
-			buf := new(bytes.Buffer)
-			json.NewEncoder(buf).Encode(Whoop{
-				From:      listeningEndpoint,
-				Message:   "whoop",
-				Timestamp: now,
-				RemoteStatus: WhoopRemoteStatus{
-					Open:    whooper.open,
-					Latency: whooper.latency,
-					Drift:   whooper.drift,
-				},
-			})
+	now := time.Now()
+	buf := new(bytes.Buffer)
+	json.NewEncoder(buf).Encode(Whoop{
+		From:      listeningEndpoint,
+		Message:   "whoop",
+		Timestamp: now,
+		RemoteStatus: WhoopRemoteStatus{
+			Open:    whooper.open,
+			Latency: whooper.latency,
+			Drift:   whooper.drift,
+		},
+	})
 
-			func() {
-				resp, err := http.Post(fullEndpoint, "application/json", buf)
-				if err != nil {
-					log.Debugf("Got error whooping %s. Error: %s", fullEndpoint, err)
-					whooper.open = false
-					return
-				}
+	func() {
+		resp, err := http.Post(fullEndpoint, "application/json", buf)
+		if err != nil {
+			log.Debugf("Got error whooping %s. Error: %s", fullEndpoint, err)
+			whooper.open = false
+			return
+		}
 
-				whoop := Whoop{}
-				err = json.NewDecoder(resp.Body).Decode(&whoop)
+		whoop := Whoop{}
+		err = json.NewDecoder(resp.Body).Decode(&whoop)
 
-				if err != nil {
-					whooper.open = false
-					log.Errorf("Got error trying to parse back-whoop from %s. Error: %s", fullEndpoint, err)
-					return
-				}
+		if err != nil {
+			whooper.open = false
+			log.Errorf("Got error trying to parse back-whoop from %s. Error: %s", fullEndpoint, err)
+			return
+		}
 
-				if whoop.Message == "whoop whoop" {
-					whooper.open = true
-					whooper.latency = time.Now().Sub(now)
-					whooper.drift = now.Add(whooper.latency / 2).Sub(whoop.Timestamp)
-					log.Debugf("Got whoop whoop from %s. RemoteStatus is open is: %v and latency: %v and drift is %s",
-						fullEndpoint, whoop.RemoteStatus.Open, whoop.RemoteStatus.Latency, whoop.RemoteStatus.Drift)
-				} else {
-					whooper.open = false
-					log.Debugf("Got unexpected back-whoop response from %s. Message: \"%s\"", fullEndpoint, whoop.Message)
-				}
-			}()
-
-			log.Debugf("Connection is open: %v and latency is: %v and drifts is %s", whooper.open, whooper.latency, whooper.drift)
-			time.Sleep(1 * time.Second)
+		if whoop.Message == "whoop whoop" {
+			whooper.open = true
+			whooper.latency = time.Now().Sub(now)
+			whooper.drift = now.Add(whooper.latency / 2).Sub(whoop.Timestamp)
+			log.Debugf("Got whoop whoop from %s. RemoteStatus is open is: %v and latency: %v and drift is %s",
+				fullEndpoint, whoop.RemoteStatus.Open, whoop.RemoteStatus.Latency, whoop.RemoteStatus.Drift)
+		} else {
+			whooper.open = false
+			log.Debugf("Got unexpected back-whoop response from %s. Message: \"%s\"", fullEndpoint, whoop.Message)
 		}
 	}()
+
+	log.Debugf("Connection is open: %v and latency is: %v and drifts is %s", whooper.open, whooper.latency, whooper.drift)
 }
