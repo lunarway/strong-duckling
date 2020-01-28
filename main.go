@@ -5,12 +5,16 @@ import (
 	"os"
 	"os/signal"
 	"sync"
+	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
 	"github.com/lunarway/strong-duckling/internal/daemon"
 	"github.com/lunarway/strong-duckling/internal/http"
 	"github.com/lunarway/strong-duckling/internal/metrics"
+	"github.com/lunarway/strong-duckling/internal/tcpchecker"
+	"github.com/lunarway/strong-duckling/internal/vici"
 	"github.com/lunarway/strong-duckling/internal/whooping"
 	"github.com/prometheus/common/log"
 	kingpin "gopkg.in/alecthomas/kingpin.v2"
@@ -22,18 +26,23 @@ var (
 
 func main() {
 	flags := kingpin.New("strong-duckling", "A small sidekick to strongswan VPN")
-	listenAddress := flags.Flag("listen", "Address on which to expose metrics.").Default(":9100").String()
+	listenAddress := flags.Flag("listen", "Address on which to expose metrics.").String()
 	whoopingAddress := flags.Flag("whooping", "Address on which to start whooping.").String()
+	portCheckAddresses := flags.Flag("port-check", "Address to port check").Strings()
 	log.AddFlags(flags)
 	flags.HelpFlag.Short('h')
 	flags.Version(version)
+	scrapeStrongswan := flags.Flag("scrapeStrongswan", "Enable strongswan scraping").Bool()
+	socket := flags.Flag("socket", "VPN socket to connect to").Default("/var/run/charon.vici").String()
 	kingpin.MustParse(flags.Parse(os.Args[1:]))
 
 	whooper := whooping.Whooper{}
 
-	server := http.Define()
-	whooper.RegisterListener(server, fmt.Sprintf("http://localhost%s", *listenAddress))
-	metrics.Register(server)
+	httpServer := http.Define()
+	if *listenAddress != "" {
+		whooper.RegisterListener(httpServer, fmt.Sprintf("http://localhost%s", *listenAddress))
+		metrics.Register(httpServer)
+	}
 
 	componentDone := make(chan error)
 	shutdown := make(chan struct{})
@@ -55,23 +64,45 @@ func main() {
 		}()
 	}
 
+	var portCheckers []tcpchecker.PortChecker
+	for _, portCheckAddress := range *portCheckAddresses {
+		pair := strings.Split(portCheckAddress, ":")
+		address := pair[0]
+		port, err := strconv.ParseInt(pair[1], 10, 32)
+		if err != nil {
+			panic(err)
+		}
+		portCheckers = append(portCheckers, tcpchecker.StartPortChecking(address, int(port), &tcpchecker.LogReporter{
+			Log: log.With("type", "portchecker"),
+		}))
+	}
+
+	//defer http.Stop()
+	go func() {
+		if *listenAddress != "" {
+			done <- http.Start(httpServer, *listenAddress)
+		}
+	}()
+
 	go func() {
 		// no shutdown mechanism in place for the HTTP server
 		componentDone <- http.Start(server, *listenAddress)
 	}()
 
-	shutdownWg.Add(1)
-	go func() {
-		defer shutdownWg.Done()
-		sigs := make(chan os.Signal, 1)
-		signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
-		select {
-		case sig := <-sigs:
-			log.Infof("Received os signal '%s'. Terminating...", sig)
-			componentDone <- nil
-		case <-shutdown:
-		}
-	}()
+	if *scrapeStrongswan {
+		shutdownWg.Add(1)
+		go func() {
+			defer shutdownWg.Done()
+			sigs := make(chan os.Signal, 1)
+			signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+			select {
+			case sig := <-sigs:
+				log.Infof("Received os signal '%s'. Terminating...", sig)
+				componentDone <- nil
+			case <-shutdown:
+			}
+		}()
+	}
 
 	reason := <-componentDone
 	if reason != nil {
