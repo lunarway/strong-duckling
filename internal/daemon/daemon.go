@@ -95,7 +95,7 @@ func (d *Daemon) Loop(stop chan struct{}) {
 			d.config.Tick()
 			timer.Reset(d.config.Interval)
 		case <-timer.C:
-			d.config.Logger.Info("Tick timer asking for tick")
+			d.config.Logger.Debugf("Tick timer asking for tick")
 			// request a new tick in the tick buffer. This might be a noop if a tick
 			// is already running.
 			d.askForTick()
