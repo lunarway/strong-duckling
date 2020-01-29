@@ -132,13 +132,38 @@ func main() {
 		}
 	}()
 
+	conn, err := net.Dial("unix", *socket)
+	if err != nil {
+		log.Errorf("Failed to establish socket connection to vici: %v", err)
+		os.Exit(1)
+	}
+	defer conn.Close()
+	client := vici.NewClientConn(conn)
+	defer client.Close()
+
 	d := daemon.New(daemon.Configuration{
 		Logger:   log.Base(),
 		Interval: 2 * time.Second,
 		Tick: func() {
-			err := collect(*socket)
+			conns, err := getViciCons(client)
 			if err != nil {
-				log.Errorf("Failed to collect strongswan metrics: %v", err)
+				log.Errorf("Failed to get strongswan connections: %v", err)
+				return
+			}
+			err = collectConnectionStats(conns, prometheusReporter)
+			if err != nil {
+				log.Errorf("Failed to report strongswan connections: %v", err)
+				return
+			}
+			sas, err := getViciSas(client)
+			if err != nil {
+				log.Errorf("Failed to get strongswan sas: %v", err)
+				return
+			}
+			err = collectSasStats(sas, prometheusReporter)
+			if err != nil {
+				log.Errorf("Failed to report strongswan sas: %v", err)
+				return
 			}
 		},
 	})
@@ -178,7 +203,12 @@ func main() {
 		componentDone <- nil
 	}()
 
+	err = runningVersion(version, prometheusReporter)
+	if err != nil {
+		componentDone <- fmt.Errorf("failed to expose version info as metrics: %v", err)
+	}
 	reason := <-componentDone
+
 	close(shutdown)
 	log.Info("waiting for all components to shutdown")
 	shutdownWg.Wait()
@@ -189,29 +219,53 @@ func main() {
 	}
 }
 
-func collect(socket string) error {
-	conn, err := net.Dial("unix", socket)
-	if err != nil {
-		return fmt.Errorf("dial socket: %w", err)
-	}
-	defer conn.Close()
-	client := vici.NewClientConn(conn)
-	defer client.Close()
+type infoReporter interface {
+	Info(buildVersion string)
+}
 
-	// get strongswan version
-	v, err := client.Version()
-	if err != nil {
-		return fmt.Errorf("get vici version: %w", err)
-	}
-	log.Infof("Version: %#v", v)
+func runningVersion(version string, reporter infoReporter) error {
+	log.Infof("Strong duckling version %s", version)
+	reporter.Info(version)
+	return nil
+}
 
+func getViciCons(client *vici.ClientConn) ([]map[string]vici.IKEConf, error) {
 	connList, err := client.ListConns("")
 	if err != nil {
-		return fmt.Errorf("list vici conns: %w", err)
+		return nil, fmt.Errorf("list vici conns: %w", err)
 	}
-	log.Infof("Connections: %d", len(connList))
-	// for _, connection := range connList {
-	// 	// log.Infof("  %#v", connection)
-	// }
+	return connList, nil
+}
+
+func getViciSas(client *vici.ClientConn) ([]map[string]vici.IkeSa, error) {
+	sasList, err := client.ListSas("", "")
+	if err != nil {
+		return nil, fmt.Errorf("list vici sas: %w", err)
+	}
+	return sasList, nil
+}
+
+type connectionReporter interface {
+}
+
+func collectConnectionStats(conns []map[string]vici.IKEConf, reporter connectionReporter) error {
+	log.Infof("Connections: %d", len(conns))
+	for _, connection := range conns {
+		for ikeName, ike := range connection {
+			log.Infof("  ikeName: %s: ike: %#v", ikeName, ike)
+		}
+	}
+	return nil
+}
+
+type sasReporter interface{}
+
+func collectSasStats(sas []map[string]vici.IkeSa, reporter sasReporter) error {
+	log.Infof("Sas: %d", len(sas))
+	for _, sa := range sas {
+		for ikeName, ikeSa := range sa {
+			log.Infof("  ikeName: %s: sa: %#v", ikeName, ikeSa)
+		}
+	}
 	return nil
 }
