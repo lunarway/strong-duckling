@@ -2,6 +2,7 @@ package tcpchecker
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"net"
 	"time"
@@ -40,8 +41,10 @@ func CheckPort(address string, port int, reporter Reporter) (string, error) {
 	for scanner.Scan() {
 		output += fmt.Sprintf("%s\n", scanner.Text())
 	}
+
 	if err := scanner.Err(); err != nil {
-		if netError, ok := err.(net.Error); ok && netError.Timeout() {
+		var netError net.Error
+		if errors.As(err, &netError) && netError.Timeout() {
 			reporter.ReportPortCheck(Report{
 				Address: address,
 				Port:    port,
