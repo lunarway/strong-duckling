@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
-	"sync"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -14,7 +14,6 @@ import (
 	"github.com/lunarway/strong-duckling/internal/http"
 	"github.com/lunarway/strong-duckling/internal/metrics"
 	"github.com/lunarway/strong-duckling/internal/tcpchecker"
-	"github.com/lunarway/strong-duckling/internal/vici"
 	"github.com/lunarway/strong-duckling/internal/whooping"
 	"github.com/prometheus/common/log"
 	kingpin "gopkg.in/alecthomas/kingpin.v2"
@@ -32,8 +31,6 @@ func main() {
 	log.AddFlags(flags)
 	flags.HelpFlag.Short('h')
 	flags.Version(version)
-	scrapeStrongswan := flags.Flag("scrapeStrongswan", "Enable strongswan scraping").Bool()
-	socket := flags.Flag("socket", "VPN socket to connect to").Default("/var/run/charon.vici").String()
 	kingpin.MustParse(flags.Parse(os.Args[1:]))
 
 	whooper := whooping.Whooper{}
@@ -64,7 +61,6 @@ func main() {
 		}()
 	}
 
-	var portCheckers []tcpchecker.PortChecker
 	for _, portCheckAddress := range *portCheckAddresses {
 		pair := strings.Split(portCheckAddress, ":")
 		address := pair[0]
@@ -72,37 +68,33 @@ func main() {
 		if err != nil {
 			panic(err)
 		}
-		portCheckers = append(portCheckers, tcpchecker.StartPortChecking(address, int(port), &tcpchecker.LogReporter{
+		portCheckerDeamon := tcpchecker.StartPortChecking(address, int(port), &tcpchecker.LogReporter{
 			Log: log.With("type", "portchecker"),
-		}))
-	}
+		})
 
-	//defer http.Stop()
-	go func() {
-		if *listenAddress != "" {
-			done <- http.Start(httpServer, *listenAddress)
-		}
-	}()
-
-	go func() {
-		// no shutdown mechanism in place for the HTTP server
-		componentDone <- http.Start(server, *listenAddress)
-	}()
-
-	if *scrapeStrongswan {
 		shutdownWg.Add(1)
 		go func() {
 			defer shutdownWg.Done()
-			sigs := make(chan os.Signal, 1)
-			signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
-			select {
-			case sig := <-sigs:
-				log.Infof("Received os signal '%s'. Terminating...", sig)
-				componentDone <- nil
-			case <-shutdown:
-			}
+			portCheckerDeamon.Loop(shutdown)
 		}()
 	}
+
+	go func() {
+		// no shutdown mechanism in place for the HTTP server
+		componentDone <- http.Start(httpServer, *listenAddress)
+	}()
+
+	go func() {
+		defer shutdownWg.Done()
+		sigs := make(chan os.Signal, 1)
+		signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+		select {
+		case sig := <-sigs:
+			log.Infof("Received os signal '%s'. Terminating...", sig)
+			componentDone <- nil
+		case <-shutdown:
+		}
+	}()
 
 	reason := <-componentDone
 	if reason != nil {

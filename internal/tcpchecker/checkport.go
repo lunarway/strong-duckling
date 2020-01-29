@@ -62,5 +62,13 @@ func CheckPort(address string, port int, reporter Reporter) (string, error) {
 		})
 		return output, err
 	}
+	reporter.ReportPortCheck(Report{
+		Address: address,
+		Port:    port,
+		Open:    true,
+		Status:  "Open",
+		Error:   nil,
+		Content: output,
+	})
 	return output, nil
 }
