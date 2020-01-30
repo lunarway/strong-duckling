@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"strings"
 	"time"
 )
 
@@ -37,9 +38,9 @@ func CheckPort(address string, port int, reporter Reporter) (string, error) {
 
 	scanner := bufio.NewScanner(conn)
 
-	output := ""
+	output := strings.Builder{}
 	for scanner.Scan() {
-		output += fmt.Sprintf("%s\n", scanner.Text())
+		fmt.Fprintf(&output, "%s\n", scanner.Text())
 	}
 
 	if err := scanner.Err(); err != nil {
@@ -51,9 +52,9 @@ func CheckPort(address string, port int, reporter Reporter) (string, error) {
 				Open:    true,
 				Status:  "Open",
 				Error:   nil,
-				Content: output,
+				Content: output.String(),
 			})
-			return output, nil
+			return output.String(), nil
 		}
 		reporter.ReportPortCheck(Report{
 			Address: address,
@@ -61,9 +62,9 @@ func CheckPort(address string, port int, reporter Reporter) (string, error) {
 			Open:    false,
 			Status:  "Scanner error",
 			Error:   err,
-			Content: output,
+			Content: output.String(),
 		})
-		return output, err
+		return output.String(), err
 	}
 	reporter.ReportPortCheck(Report{
 		Address: address,
@@ -71,7 +72,7 @@ func CheckPort(address string, port int, reporter Reporter) (string, error) {
 		Open:    true,
 		Status:  "Open",
 		Error:   nil,
-		Content: output,
+		Content: output.String(),
 	})
-	return output, nil
+	return output.String(), nil
 }
