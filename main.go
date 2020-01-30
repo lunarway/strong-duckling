@@ -79,10 +79,12 @@ func main() {
 		}()
 	}
 
-	go func() {
-		// no shutdown mechanism in place for the HTTP server
-		componentDone <- http.Start(httpServer, *listenAddress)
-	}()
+	if *listenAddress != "" {
+		go func() {
+			// no shutdown mechanism in place for the HTTP server
+			componentDone <- http.Start(httpServer, *listenAddress)
+		}()
+	}
 
 	go func() {
 		defer shutdownWg.Done()
