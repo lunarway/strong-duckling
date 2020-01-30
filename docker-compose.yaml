@@ -1,0 +1,35 @@
+version: "3.7"
+services:
+  strongswan1:
+    build:
+      context: strongswan
+      dockerfile: Dockerfile
+    privileged: true
+    environment:
+      STRONGSWAN_VERSION: 5.8.1
+      VPN_LOCAL_PEER: strongswan1
+      VPN_LOCAL_NETWORK: 10.101.0.1
+      VPN_REMOTE_PEER: strongswan2
+      VPN_REMOTE_NETWORK: 10.102.0.1
+      STRONG_DUCKLING_ARGS: "--listen :8000"
+    volumes:
+      - type: bind
+        source: ./strong-duckling-linux
+        target: /strong-duckling
+
+  strongswan2:
+    build:
+      context: strongswan
+      dockerfile: Dockerfile
+    privileged: true
+    environment:
+      STRONGSWAN_VERSION: 5.8.1
+      VPN_LOCAL_PEER: strongswan2
+      VPN_LOCAL_NETWORK: 10.102.0.1
+      VPN_REMOTE_PEER: strongswan1
+      VPN_REMOTE_NETWORK: 10.101.0.1
+      STRONG_DUCKLING_ARGS: "--listen :8000"
+    volumes:
+      - type: bind
+        source: ./strong-duckling-linux
+        target: /strong-duckling
