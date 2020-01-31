@@ -11,12 +11,14 @@ services:
       VPN_LOCAL_NETWORK: 10.101.0.1
       VPN_REMOTE_PEER: strongswan2
       VPN_REMOTE_NETWORK: 10.102.0.1
-      STRONG_DUCKLING_ARGS: "--listen :8000"
+      STRONG_DUCKLING_ARGS: "--listen :8000 --tcp-checker nodejs:10.101.0.1:8090"
     volumes:
       - type: bind
         source: ./strong-duckling-linux
         target: /strong-duckling
-
+    ports:
+      - 9001:8000
+      - 9002:8080
   strongswan2:
     build:
       context: strongswan
@@ -28,8 +30,26 @@ services:
       VPN_LOCAL_NETWORK: 10.102.0.1
       VPN_REMOTE_PEER: strongswan1
       VPN_REMOTE_NETWORK: 10.101.0.1
-      STRONG_DUCKLING_ARGS: "--listen :8000"
+      STRONG_DUCKLING_ARGS: "--listen :8000 --tcp-checker 10.101.0.1:8090"
+    ports:
+      - 10001:8000
+      - 10002:8080
     volumes:
       - type: bind
         source: ./strong-duckling-linux
         target: /strong-duckling
+
+  prometheus:
+    image: prom/prometheus:v2.15.2
+    volumes:
+      - type: bind
+        source: ./prometheus.yml
+        target: /prometheus.yml
+    command:
+      - "--config.file=/prometheus.yml"
+    ports:
+      - 9090:9090
+    links:
+      - strongswan1:strongswan1
+      - strongswan2:strongswan2
+    restart: always

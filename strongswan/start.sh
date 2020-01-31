@@ -61,24 +61,24 @@ cat <<EOF >/supervisord.conf
 nodaemon=true
 
 [program:charon]
-command=/usr/sbin/charon-systemd
-stdout_logfile=/dev/fd/1
+command=/prefix-log /usr/sbin/charon-systemd
+stdout_logfile=/dev/stdout
 stdout_logfile_maxbytes=0
-stderr_logfile=/dev/fd/2
+stderr_logfile=/dev/stderr
 stderr_logfile_maxbytes=0
 
 [program:http-server]
-command=node /server.js
-stdout_logfile=/dev/fd/1
+command=/prefix-log node /server.js
+stdout_logfile=/dev/stdout
 stdout_logfile_maxbytes=0
-stderr_logfile=/dev/fd/2
+stderr_logfile=/dev/stderr
 stderr_logfile_maxbytes=0
 
 [program:strong-duckling]
-command=nodemon --signal SIGTERM --watch /strong-duckling -x "/strong-duckling $STRONG_DUCKLING_ARGS || exit 1"
-stdout_logfile=/dev/fd/1
+command=/prefix-log nodemon --signal SIGTERM --watch /strong-duckling -x "/strong-duckling $STRONG_DUCKLING_ARGS || exit 1"
+stdout_logfile=/dev/stdout
 stdout_logfile_maxbytes=0
-stderr_logfile=/dev/fd/2
+stderr_logfile=/dev/stderr
 stderr_logfile_maxbytes=0
 EOF
 
