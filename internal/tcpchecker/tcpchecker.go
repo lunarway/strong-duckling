@@ -9,10 +9,11 @@ import (
 	"time"
 )
 
-func CheckPort(address string, port int, reporter Reporter) (string, error) {
+func Check(name string, address string, port int, reporter Reporter) {
 	conn, err := net.DialTimeout("tcp", fmt.Sprintf("%s:%v", address, port), 1*time.Second)
 	if err != nil {
 		reporter.ReportPortCheck(Report{
+			Name:    name,
 			Address: address,
 			Port:    port,
 			Open:    false,
@@ -20,12 +21,13 @@ func CheckPort(address string, port int, reporter Reporter) (string, error) {
 			Error:   err,
 			Content: "",
 		})
-		return "", err
+		return
 	}
 
 	err = conn.SetDeadline(time.Now().Add(1 * time.Second))
 	if err != nil {
 		reporter.ReportPortCheck(Report{
+			Name:    name,
 			Address: address,
 			Port:    port,
 			Open:    false,
@@ -33,7 +35,7 @@ func CheckPort(address string, port int, reporter Reporter) (string, error) {
 			Error:   err,
 			Content: "",
 		})
-		return "", err
+		return
 	}
 
 	scanner := bufio.NewScanner(conn)
@@ -47,6 +49,7 @@ func CheckPort(address string, port int, reporter Reporter) (string, error) {
 		var netError net.Error
 		if errors.As(err, &netError) && netError.Timeout() {
 			reporter.ReportPortCheck(Report{
+				Name:    name,
 				Address: address,
 				Port:    port,
 				Open:    true,
@@ -54,9 +57,10 @@ func CheckPort(address string, port int, reporter Reporter) (string, error) {
 				Error:   nil,
 				Content: output.String(),
 			})
-			return output.String(), nil
+			return
 		}
 		reporter.ReportPortCheck(Report{
+			Name:    name,
 			Address: address,
 			Port:    port,
 			Open:    false,
@@ -64,9 +68,10 @@ func CheckPort(address string, port int, reporter Reporter) (string, error) {
 			Error:   err,
 			Content: output.String(),
 		})
-		return output.String(), err
+		return
 	}
 	reporter.ReportPortCheck(Report{
+		Name:    name,
 		Address: address,
 		Port:    port,
 		Open:    true,
@@ -74,5 +79,5 @@ func CheckPort(address string, port int, reporter Reporter) (string, error) {
 		Error:   nil,
 		Content: output.String(),
 	})
-	return output.String(), nil
+	return
 }

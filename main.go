@@ -15,6 +15,7 @@ import (
 	"github.com/lunarway/strong-duckling/internal/metrics"
 	"github.com/lunarway/strong-duckling/internal/tcpchecker"
 	"github.com/lunarway/strong-duckling/internal/whooping"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/log"
 	kingpin "gopkg.in/alecthomas/kingpin.v2"
 )
@@ -27,7 +28,7 @@ func main() {
 	flags := kingpin.New("strong-duckling", "A small sidekick to strongswan VPN")
 	listenAddress := flags.Flag("listen", "Address on which to expose metrics.").String()
 	whoopingAddress := flags.Flag("whooping", "Address on which to start whooping.").String()
-	portCheckAddresses := flags.Flag("port-check", "Address to port check").Strings()
+	tcpCheckerAddresses := flags.Flag("tcp-checker", "TCP address to check. Supports <address>:<port> or <name>:<address>:<port>").Strings()
 	log.AddFlags(flags)
 	flags.HelpFlag.Short('h')
 	flags.Version(version)
@@ -39,6 +40,11 @@ func main() {
 	if *listenAddress != "" {
 		whooper.RegisterListener(httpServer, fmt.Sprintf("http://localhost%s", *listenAddress))
 		metrics.Register(httpServer)
+	}
+	reporter, err := metrics.NewPrometheusReporter(prometheus.DefaultRegisterer)
+	if err != nil {
+		log.Errorf("Failed to register metrics: %v", err)
+		os.Exit(1)
 	}
 
 	componentDone := make(chan error)
@@ -61,21 +67,53 @@ func main() {
 		}()
 	}
 
-	for _, portCheckAddress := range *portCheckAddresses {
-		pair := strings.Split(portCheckAddress, ":")
-		address := pair[0]
-		port, err := strconv.ParseInt(pair[1], 10, 32)
-		if err != nil {
-			panic(err)
+	for _, tcpCheckerAddress := range *tcpCheckerAddresses {
+		values := strings.Split(tcpCheckerAddress, ":")
+		var name, address, portStr string
+
+		if len(values) == 3 {
+			name = values[0]
+			address = values[1]
+			portStr = values[2]
+		} else if len(values) == 2 {
+			address = values[0]
+			portStr = values[1]
+			name = fmt.Sprintf("%s:%s", address, portStr)
+		} else {
+			log.Errorf("Could not understand tcp-checker %s", tcpCheckerAddress)
+			os.Exit(1)
 		}
-		portCheckerDeamon := tcpchecker.StartPortChecking(address, int(port), &tcpchecker.LogReporter{
-			Log: log.With("type", "portchecker"),
+		port, err := strconv.ParseInt(portStr, 10, 32)
+		if err != nil {
+			log.Errorf("Could not parse port %s as integer in tcp-checker %s. Error: %s", portStr, tcpCheckerAddress, err)
+			os.Exit(1)
+		}
+
+		logger := log.
+			With("type", "tcpchecker").
+			With("name", name).
+			With("address", address).
+			With("port", port)
+		logger.Infof("Start checking address %s:%v", address, port)
+		tcpCheckerDaemon := daemon.New(daemon.Configuration{
+			Logger:   logger,
+			Interval: 1 * time.Second,
+			Tick: func() {
+				tcpchecker.Check(name, address, int(port), tcpchecker.CompositeReporter{
+					Reporters: []tcpchecker.Reporter{
+						&tcpchecker.LogReporter{
+							Logger: logger,
+						},
+						reporter.TcpChecker,
+					},
+				})
+			},
 		})
 
 		shutdownWg.Add(1)
 		go func() {
 			defer shutdownWg.Done()
-			portCheckerDeamon.Loop(shutdown)
+			tcpCheckerDaemon.Loop(shutdown)
 		}()
 	}
 

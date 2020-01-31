@@ -5,6 +5,7 @@ type Reporter interface {
 }
 
 type Report struct {
+	Name    string
 	Address string
 	Port    int
 	Open    bool
