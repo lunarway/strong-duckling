@@ -4,74 +4,126 @@ import (
 	"strconv"
 )
 
-//from list-sa event
+// IkeSa is an IKE Security Associasion from a list-sa event.
 type IkeSa struct {
-	Uniqueid        string               `json:"uniqueid"` //called ike_id in terminate() argument.
-	Version         string               `json:"version"`
-	State           string               `json:"state"` //had saw: ESTABLISHED
-	Local_host      string               `json:"local-host"`
-	Local_port      string               `json:"local-port"`
-	Local_id        string               `json:"local-id"`
-	Remote_host     string               `json:"remote-host"`
-	Remote_port     string               `json:"remote-port"`
-	Remote_id       string               `json:"remote-id"`
-	Remote_xauth_id string               `json:"remote-xauth-id"` //client username
-	Initiator       string               `json:"initiator"`
-	Initiator_spi   string               `json:"initiator-spi"`
-	Responder_spi   string               `json:"responder-spi"`
-	Encr_alg        string               `json:"encr-alg"`
-	Encr_keysize    string               `json:"encr-keysize"`
-	Integ_alg       string               `json:"integ-alg"`
-	Integ_keysize   string               `json:"integ-keysize"`
-	Prf_alg         string               `json:"prf-alg"`
-	Dh_group        string               `json:"dh-group"`
-	Established     string               `json:"established"`
-	Rekey_time      string               `json:"rekey-time"`
-	Reauth_time     string               `json:"reauth-time"`
-	Remote_vips     []string             `json:"remote-vips"`
-	Child_sas       map[string]Child_sas `json:"child-sas"` //key means child-sa-name(conn name in ipsec.conf)
+	UniqueID   string `json:"uniqueid"` //called ike_id in terminate() argument.
+	IKEVersion string `json:"version"`
+	// State is the state of the IKE SA: ESTABLISHED
+	State         string `json:"state"`
+	LocalHost     string `json:"local-host"`
+	LocalPort     string `json:"local-port"`
+	LocalID       string `json:"local-id"`
+	RemoteHost    string `json:"remote-host"`
+	RemotePort    string `json:"remote-port"`
+	RemoteID      string `json:"remote-id"`
+	RemoteXAuthID string `json:"remote-xauth-id"` //client username
+	RemoteEAPID   string `json:"remote-eap-id"`
+	// Initiator indicates if this SA is the initiator.
+	Initiator string `json:"initiator"`
+	// InitiatorSPI contains a hex encoded initiator SPI / cookie
+	InitiatorSPI string `json:"initiator-spi"`
+	// ResponderSPI contains a hex encoded responder SPI / cookie
+	ResponderSPI        string `json:"responder-spi"`
+	EncryptionAlgorithm string `json:"encr-alg"`
+	EncryptionKeySize   string `json:"encr-keysize"`
+	IntegrityAlgorithm  string `json:"integ-alg"`
+	IntegrityKeySize    string `json:"integ-keysize"`
+	// PRFAlgorithm is the pseudo-random function used for keying material.
+	PRFAlgorithm string `json:"prf-alg"`
+	DHGroup      string `json:"dh-group"`
+	// EstablishedSeconds is the number of seconds the IKE SA has been established.
+	EstablishedSeconds string `json:"established"` // metric
+	// RekeyTimeSeconds is the number of seconds before the IKE SA gets rekeyed.
+	RekeyTimeSeconds string `json:"rekey-time"`
+	// ReauthTimeSeconds is the number of seconds before the IIKE SA gets re-authenticated.
+	ReauthTimeSeconds string `json:"reauth-time"`
+	// LocalVIPs are the virtual IPs assigned by the remote peer, installed locally.
+	LocalVIPs []string `json:"local-vips"`
+	// RemoteVIPs are the virtual IPs assigned to the remote peer.
+	RemoteVIPs []string `json:"remote-vips"`
+	// ChildSAs is a map of IKE Child SAs keyed by their name.
+	ChildSAs map[string]ChildSA `json:"child-sas"`
+	/*
+		Unmapped fields
+		tasks-queued = [
+				<list of currently queued tasks for execution>
+		]
+		tasks-active = [
+				<list of tasks currently initiating actively>
+		]
+		tasks-passive = [
+				<list of tasks currently handling passively>
+		]
+	*/
 }
 
-type Child_sas struct {
-	Reqid         string   `json:"reqid"`
-	State         string   `json:"state"` //had saw: INSTALLED
-	Mode          string   `json:"mode"`  //had saw: TUNNEL
-	Protocol      string   `json:"protocol"`
-	Encap         string   `json:"encap"`
-	Spi_in        string   `json:"spi-in"`
-	Spi_out       string   `json:"spi-out"`
-	Cpi_in        string   `json:"cpi-in"`
-	Cpi_out       string   `json:"cpi-out"`
-	Encr_alg      string   `json:"encr-alg"`
-	Encr_keysize  string   `json:"encr-keysize"`
-	Integ_alg     string   `json:"integ-alg"`
-	Integ_keysize string   `json:"integ-keysize"`
-	Prf_alg       string   `json:"prf-alg"`
-	Dh_group      string   `json:"dh-group"`
-	Esn           string   `json:"esn"`
-	Bytes_in      string   `json:"bytes-in"` //bytes into this machine
-	Packets_in    string   `json:"packets-in"`
-	Use_in        string   `json:"use-in"`
-	Bytes_out     string   `json:"bytes-out"` // bytes out of this machine
-	Packets_out   string   `json:"packets-out"`
-	Use_out       string   `json:"use-out"`
-	Rekey_time    string   `json:"rekey-time"`
-	Life_time     string   `json:"life-time"`
-	Install_time  string   `json:"install-time"`
-	Local_ts      []string `json:"local-ts"`
-	Remote_ts     []string `json:"remote-ts"`
+type ChildSA struct {
+	Name     string `json:"name"`
+	UniqueID string `json:"uniqueid"`
+	ReqID    string `json:"reqid"`
+	// State is the IKE Child SA state: INSTALLED
+	State string `json:"state"`
+	// IPsecMode is the IPsec mode: tunnel, transport, beet
+	IPsecMode string `json:"mode"`
+	// IPsecProtocol is the IPsec protocol: AH, ESP
+	IPsecProtocol string `json:"protocol"`
+	// UDPEncapsulation is "yes" if UDP encapsulation is enabled.
+	UDPEncapsulation string `json:"encap"`
+	// SPIIn contains a hex encoded inbound SPI.
+	SPIIn string `json:"spi-in"`
+	// SPIOut contains a hex encoded outbound SPI.
+	SPIOut string `json:"spi-out"`
+	// CPIIn contains a hex encoded inbound CPI if compression is used.
+	CPIIn string `json:"cpi-in"`
+	// CPIOut contains a hex encoded outbound CPI if compression is used.
+	CPIOut              string `json:"cpi-out"`
+	EncryptionAlgorithm string `json:"encr-alg"`
+	EncryptionKeySize   string `json:"encr-keysize"`
+	IntegrityAlgorithm  string `json:"integ-alg"`
+	IntegrityKeySize    string `json:"integ-keysize"`
+	// PRFAlgorithm is the pseudo-random function used for keying material.
+	PRFAlgorithm string `json:"prf-alg"`
+	DHGroup      string `json:"dh-group"`
+	// ExtendedSequenceNumber indicates whether the SA is using extended sequence
+	// numbers. If the value is 1 it is used otherwise it is empty.
+	ExtendedSequenceNumber string `json:"esn"`
+	BytesIn                string `json:"bytes-in"`
+	BytesOut               string `json:"bytes-out"`
+	PacketsIn              string `json:"packets-in"`
+	PacketsOut             string `json:"packets-out"`
+	// LastPacketInSeconds is the number of seconds since the last received packet.
+	LastPacketInSeconds string `json:"use-in"`
+	// LastPacketOutSeconds is the number of seconds since the last transmitted packet.
+	LastPacketOutSeconds string `json:"use-out"`
+	// RekeyTimeSeconds is the number of seconds before the IKE Child SA gets rekeyed.
+	RekeyTimeSeconds string `json:"rekey-time"`
+	// LifeTimeSeconds is the number of seconds before the IKE Child SA expires.
+	LifeTimeSeconds string `json:"life-time"`
+	// InstallTimeSeconds is the number of seconds the IKE Child SA has been installed.
+	InstallTimeSeconds     string   `json:"install-time"`
+	LocalTrafficSelectors  []string `json:"local-ts"`
+	RemoteTrafficSelectors []string `json:"remote-ts"`
+	/*
+		Unmapped fields
+		mark-in = <hex encoded inbound Netfilter mark value>
+		mark-mask-in = <hex encoded inbound Netfilter mark mask>
+		mark-out = <hex encoded outbound Netfilter mark value>
+		mark-mask-out = <hex encoded outbound Netfilter mark mask>
+		if-id-in = <hex encoded inbound XFRM interface ID>
+		if-id-out = <hex encoded outbound XFRM interface ID>
+	*/
 }
 
-func (s *Child_sas) GetBytesIn() uint64 {
-	num, err := strconv.ParseUint(s.Bytes_in, 10, 64)
+func (s *ChildSA) GetBytesIn() uint64 {
+	num, err := strconv.ParseUint(s.BytesIn, 10, 64)
 	if err != nil {
 		return 0
 	}
 	return num
 }
 
-func (s *Child_sas) GetBytesOut() uint64 {
-	num, err := strconv.ParseUint(s.Bytes_out, 10, 64)
+func (s *ChildSA) GetBytesOut() uint64 {
+	num, err := strconv.ParseUint(s.BytesOut, 10, 64)
 	if err != nil {
 		return 0
 	}
@@ -121,25 +173,25 @@ func (c *ClientConn) ListSas(ike string, ike_id string) ([]map[string]IkeSa, err
 
 //a vpn conn in the strongswan server
 type VpnConnInfo struct {
-	IkeSa
-	// FIXME: This looks wrong. JSON keys between IkeSa and Child_sas are conflicting.
-	Child_sas
+	IkeSa IkeSa
+	// FIXME: This looks wrong. JSON keys between IkeSa and ChildSAs are conflicting.
+	ChildSA     ChildSA
 	IkeSaName   string //looks like conn name in ipsec.conf, content is same as ChildSaName
 	ChildSaName string //looks like conn name in ipsec.conf
 }
 
 func (c *VpnConnInfo) GuessUserName() string {
-	if c.Remote_xauth_id != "" {
-		return c.Remote_xauth_id
+	if c.IkeSa.RemoteXAuthID != "" {
+		return c.IkeSa.RemoteXAuthID
 	}
-	if c.Remote_id != "" {
-		return c.Remote_id
+	if c.IkeSa.RemoteID != "" {
+		return c.IkeSa.RemoteID
 	}
 	return ""
 }
 
 // a helper method to avoid complex data struct in ListSas
-// if it only have one child_sas ,it will put it into info.Child_sas
+// if it only have one child_sas ,it will put it into info.ChildSAs
 func (c *ClientConn) ListAllVpnConnInfo() ([]VpnConnInfo, error) {
 	sasList, err := c.ListSas("", "")
 	if err != nil {
@@ -151,15 +203,15 @@ func (c *ClientConn) ListAllVpnConnInfo() ([]VpnConnInfo, error) {
 		for ikeSaName, ikeSa := range sa {
 			info.IkeSaName = ikeSaName
 			info.IkeSa = ikeSa
-			for childSaName, childSa := range ikeSa.Child_sas {
+			for childSaName, childSa := range ikeSa.ChildSAs {
 				info.ChildSaName = childSaName
-				info.Child_sas = childSa
+				info.ChildSA = childSa
 				break
 			}
 			break
 		}
-		if len(info.IkeSa.Child_sas) == 1 {
-			info.IkeSa.Child_sas = nil
+		if len(info.IkeSa.ChildSAs) == 1 {
+			info.IkeSa.ChildSAs = nil
 		}
 		list[i] = info
 	}

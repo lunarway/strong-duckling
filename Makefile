@@ -13,9 +13,13 @@ swanctl/list-conns:
 swanctl/list-sas:
 	docker run -it --rm -v $(VICI_SOCKET):/run $(STRONGSWAN_DOCKER_IMAGE) swanctl --list-sas
 
-export GOOS=linux
 DATE:=`date +%Y-%m-%d\_%H:%M`
 GIT_SHA:=`git rev-parse HEAD`
 
 build:
-	go build -o strong-duckling -ldflags="-X main.version=$(GIT_SHA)_$(DATE)" main.go
+	GOOS=linux go build -o strong-duckling -ldflags="-X main.version=$(GIT_SHA)_$(DATE)" main.go
+
+MOCKERY_ARGS=-case=underscore -inpkg -testonly
+generate/mock:
+	go get github.com/vektra/mockery/.../
+	mockery $(MOCKERY_ARGS) -dir internal/stats -name .*Reporter

@@ -14,6 +14,7 @@ import (
 	"github.com/lunarway/strong-duckling/internal/daemon"
 	"github.com/lunarway/strong-duckling/internal/http"
 	"github.com/lunarway/strong-duckling/internal/metrics"
+	"github.com/lunarway/strong-duckling/internal/stats"
 	"github.com/lunarway/strong-duckling/internal/tcpchecker"
 	"github.com/lunarway/strong-duckling/internal/vici"
 	"github.com/lunarway/strong-duckling/internal/whooping"
@@ -145,26 +146,7 @@ func main() {
 		Logger:   log.Base(),
 		Interval: 2 * time.Second,
 		Tick: func() {
-			conns, err := getViciCons(client)
-			if err != nil {
-				log.Errorf("Failed to get strongswan connections: %v", err)
-				return
-			}
-			err = collectConnectionStats(conns, prometheusReporter)
-			if err != nil {
-				log.Errorf("Failed to report strongswan connections: %v", err)
-				return
-			}
-			sas, err := getViciSas(client)
-			if err != nil {
-				log.Errorf("Failed to get strongswan sas: %v", err)
-				return
-			}
-			err = collectSasStats(sas, prometheusReporter)
-			if err != nil {
-				log.Errorf("Failed to report strongswan sas: %v", err)
-				return
-			}
+			stats.Collect(client, prometheusReporter)
 		},
 	})
 
@@ -173,37 +155,7 @@ func main() {
 		componentDone <- nil
 	}()
 
-	go func() {
-		conn, err := net.Dial("unix", *socket)
-		if err != nil {
-			componentDone <- fmt.Errorf("dial socket: %w", err)
-			return
-		}
-		defer conn.Close()
-		client := vici.NewClientConn(conn)
-		defer client.Close()
-
-		// get strongswan version
-		v, err := client.Version()
-		if err != nil {
-			componentDone <- fmt.Errorf("get vici version: %w", err)
-			return
-		}
-		fmt.Printf("Version: %#v\n", v)
-
-		connList, err := client.ListConns("")
-		if err != nil {
-			componentDone <- fmt.Errorf("list vici conns: %w", err)
-			return
-		}
-		fmt.Printf("Connections: %d\n", len(connList))
-		// for _, connection := range connList {
-		// 	// fmt.Printf("  %#v\n", connection)
-		// }
-		componentDone <- nil
-	}()
-
-	err = runningVersion(version, prometheusReporter)
+	err = stats.RunningVersion(version, prometheusReporter)
 	if err != nil {
 		componentDone <- fmt.Errorf("failed to expose version info as metrics: %v", err)
 	}
@@ -217,55 +169,4 @@ func main() {
 	} else {
 		log.Info("exited due to a component shutting down")
 	}
-}
-
-type infoReporter interface {
-	Info(buildVersion string)
-}
-
-func runningVersion(version string, reporter infoReporter) error {
-	log.Infof("Strong duckling version %s", version)
-	reporter.Info(version)
-	return nil
-}
-
-func getViciCons(client *vici.ClientConn) ([]map[string]vici.IKEConf, error) {
-	connList, err := client.ListConns("")
-	if err != nil {
-		return nil, fmt.Errorf("list vici conns: %w", err)
-	}
-	return connList, nil
-}
-
-func getViciSas(client *vici.ClientConn) ([]map[string]vici.IkeSa, error) {
-	sasList, err := client.ListSas("", "")
-	if err != nil {
-		return nil, fmt.Errorf("list vici sas: %w", err)
-	}
-	return sasList, nil
-}
-
-type connectionReporter interface {
-}
-
-func collectConnectionStats(conns []map[string]vici.IKEConf, reporter connectionReporter) error {
-	log.Infof("Connections: %d", len(conns))
-	for _, connection := range conns {
-		for ikeName, ike := range connection {
-			log.Infof("  ikeName: %s: ike: %#v", ikeName, ike)
-		}
-	}
-	return nil
-}
-
-type sasReporter interface{}
-
-func collectSasStats(sas []map[string]vici.IkeSa, reporter sasReporter) error {
-	log.Infof("Sas: %d", len(sas))
-	for _, sa := range sas {
-		for ikeName, ikeSa := range sa {
-			log.Infof("  ikeName: %s: sa: %#v", ikeName, ikeSa)
-		}
-	}
-	return nil
 }

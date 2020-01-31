@@ -1,5 +1,28 @@
 # strong-duckling
+
 Strongswan sidecar and VPN tooling
+
+# Metrics
+
+The application exposes Prometheus metrics on `/metrics` for general insight into the application and the VPNs it monitors.
+
+| Name                   | Labels                         | Description                                               |
+| ---------------------- | ------------------------------ | --------------------------------------------------------- |
+| `strong_duckling_info` | `version`,`strongswan_version` | Metadata such as version info of the application it self. |
+
+## IKE SA metrics
+
+| Name                                                          | Type      | Labels | Description                              |
+| ------------------------------------------------------------- | --------- | ------ | ---------------------------------------- |
+| `strong_duckling_ike_sa_established_seconds`                  | Gauge     |        | Time the SA have been established        |
+| `strong_duckling_ike_sa_packets_in_total`                     | Counter   |        | Total number of received packets         |
+| `strong_duckling_ike_sa_packets_out_total`                    | Counter   |        | Total number of transmitted packets      |
+| `strong_duckling_ike_sa_packets_in_silence_duration_seconds`  | Histogram |        | Duration of silences between packets in  |
+| `strong_duckling_ike_sa_packets_out_silence_duration_seconds` | Histogram |        | Duration of silences between packets out |
+| `strong_duckling_ike_sa_bytes_in_total`                       | Counter   |        | Total number of received bytes           |
+| `strong_duckling_ike_sa_bytes_out_total`                      | Counter   |        | Total number of transmitted bytes        |
+| `strong_duckling_ike_sa_installs_total`                       | Counter   |        | Total number of SA installs              |
+| `strong_duckling_ike_sa_rekey_seconds`                        | Histogram |        | Duration of each key session             |
 
 ## Local development setup
 To use the test setup start a linux build watcher (requires nodemon) like this:
