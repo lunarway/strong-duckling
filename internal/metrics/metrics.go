@@ -58,7 +58,7 @@ type ikeSA struct {
 	bytesOut             *prometheus.CounterVec
 	installedSeconds     *prometheus.CounterVec
 	rekeySeconds         *prometheus.HistogramVec
-	lifeTimeSeconds      *prometheus.GaugeVec
+	lifeTimeSeconds      *prometheus.HistogramVec
 	state                *prometheus.GaugeVec
 	childSAState         *prometheus.GaugeVec
 }
@@ -146,17 +146,17 @@ func NewPrometheusReporter(reg prometheus.Registerer) (*PrometheusReporter, erro
 				Name:      "rekey_seconds",
 				Help:      "Duration of each key session",
 			}, []string{}),
-			lifeTimeSeconds: prometheus.NewGaugeVec(prometheus.GaugeOpts{
+			lifeTimeSeconds: prometheus.NewHistogramVec(prometheus.HistogramOpts{
 				Namespace: namespace,
 				Subsystem: "ika_sa",
 				Name:      "lifetime_seconds",
-				Help:      "Number of seconds before the child SA expires",
+				Help:      "Duration of each IKE session",
 			}, []string{}),
 			state: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 				Namespace: namespace,
 				Subsystem: "ika_sa",
 				Name:      "state_info",
-				Help:      "Current state of the SA.",
+				Help:      "Current state of the SA",
 			}, []string{}),
 			childSAState: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 				Namespace: namespace,
