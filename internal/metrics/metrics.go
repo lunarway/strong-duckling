@@ -30,10 +30,14 @@ const (
 type PrometheusReporter struct {
 	registry   prometheus.Registerer
 	version    *prometheus.GaugeVec
-	TcpChecker *TcpChecker
+	tcpChecker *tcpChecker
 }
 
-type TcpChecker struct {
+func (pr *PrometheusReporter) TcpChecker() tcpchecker.Reporter {
+	return pr.tcpChecker
+}
+
+type tcpChecker struct {
 	open             *prometheus.GaugeVec
 	connectedTotal   *prometheus.CounterVec
 	disconectedTotal *prometheus.CounterVec
@@ -79,7 +83,7 @@ func (p *PrometheusReporter) Info(strongDucklingVersion string) {
 	p.version.WithLabelValues(strongDucklingVersion).Set(1)
 }
 
-func (r *TcpChecker) ReportPortCheck(report tcpchecker.Report) {
+func (r *tcpChecker) ReportPortCheck(report tcpchecker.Report) {
 	if report.Open {
 		r.open.WithLabelValues(report.Name, report.Address, fmt.Sprintf("%d", report.Port)).Set(1)
 		if r.previousOpenState == nil || *r.previousOpenState != report.Open {

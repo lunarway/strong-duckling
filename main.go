@@ -104,7 +104,7 @@ func main() {
 						&tcpchecker.LogReporter{
 							Logger: logger,
 						},
-						reporter.TcpChecker,
+						reporter.TcpChecker(),
 					},
 				})
 			},
