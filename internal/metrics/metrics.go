@@ -3,6 +3,7 @@ package metrics
 import (
 	"fmt"
 	"net/http"
+	"strconv"
 
 	"github.com/lunarway/strong-duckling/internal/tcpchecker"
 	"github.com/lunarway/strong-duckling/internal/vici"
@@ -21,16 +22,24 @@ func Register(serveMux *http.ServeMux) {
 const (
 	namespace           = "strong_duckling"
 	subSystemTcpChecker = "tcp_checker"
+	subSystemIKE        = "ike_sa"
 )
 
 // metric label consts
 const (
 	strongswanVersion     = "strongswan_version"
 	strongDucklingVersion = "version"
+	childSAName           = "child_sa_name"
 )
 
+type Logger interface {
+	Errorf(string, ...interface{})
+}
+
 type PrometheusReporter struct {
-	registry   prometheus.Registerer
+	registry prometheus.Registerer
+	logger   Logger
+
 	version    *prometheus.GaugeVec
 	tcpChecker *tcpChecker
 	ikeSA      ikeSA
@@ -49,23 +58,25 @@ type tcpChecker struct {
 }
 
 type ikeSA struct {
-	establishedSeconds   *prometheus.GaugeVec
-	packetsIn            *prometheus.CounterVec
-	packetsOut           *prometheus.CounterVec
-	lastPacketInSeconds  *prometheus.HistogramVec
-	lastPacketOutSeconds *prometheus.HistogramVec
-	bytesIn              *prometheus.CounterVec
-	bytesOut             *prometheus.CounterVec
-	installedSeconds     *prometheus.CounterVec
-	rekeySeconds         *prometheus.HistogramVec
-	lifeTimeSeconds      *prometheus.HistogramVec
-	state                *prometheus.GaugeVec
-	childSAState         *prometheus.GaugeVec
+	establishedSeconds         *prometheus.GaugeVec
+	previousEstablishedSeconds float64
+	packetsIn                  *prometheus.GaugeVec
+	packetsOut                 *prometheus.GaugeVec
+	lastPacketInSeconds        *prometheus.HistogramVec
+	lastPacketOutSeconds       *prometheus.HistogramVec
+	bytesIn                    *prometheus.GaugeVec
+	bytesOut                   *prometheus.GaugeVec
+	installedSeconds           *prometheus.CounterVec
+	rekeySeconds               *prometheus.HistogramVec
+	lifeTimeSeconds            *prometheus.HistogramVec
+	state                      *prometheus.GaugeVec
+	childSAState               *prometheus.GaugeVec
 }
 
-func NewPrometheusReporter(reg prometheus.Registerer) (*PrometheusReporter, error) {
+func NewPrometheusReporter(reg prometheus.Registerer, logger Logger) (*PrometheusReporter, error) {
 	r := PrometheusReporter{
 		registry: reg,
+		logger:   logger,
 		version: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Namespace: namespace,
 			Name:      "info",
@@ -94,86 +105,115 @@ func NewPrometheusReporter(reg prometheus.Registerer) (*PrometheusReporter, erro
 		ikeSA: ikeSA{
 			establishedSeconds: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 				Namespace: namespace,
-				Subsystem: "ika_sa",
+				Subsystem: subSystemIKE,
 				Name:      "established_seconds",
 				Help:      "Number of seconds the SA has been established",
 			}, []string{}),
-			packetsIn: prometheus.NewCounterVec(prometheus.CounterOpts{
+			packetsIn: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 				Namespace: namespace,
-				Subsystem: "ika_sa",
+				Subsystem: subSystemIKE,
 				Name:      "packets_in_total",
 				Help:      "Total number of received packets",
-			}, []string{}),
-			packetsOut: prometheus.NewCounterVec(prometheus.CounterOpts{
+			}, []string{childSAName}),
+			packetsOut: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 				Namespace: namespace,
-				Subsystem: "ika_sa",
+				Subsystem: subSystemIKE,
 				Name:      "packets_out_total",
 				Help:      "Total number of transmitted packets",
-			}, []string{}),
+			}, []string{childSAName}),
 			lastPacketInSeconds: prometheus.NewHistogramVec(prometheus.HistogramOpts{
 				Namespace: namespace,
-				Subsystem: "ika_sa",
+				Subsystem: subSystemIKE,
 				Name:      "packets_in_silence_duration_seconds",
 				Help:      "Duration of silences between packets in",
+				Buckets:   prometheus.ExponentialBuckets(0.1, 10, 10),
 			}, []string{}),
 			lastPacketOutSeconds: prometheus.NewHistogramVec(prometheus.HistogramOpts{
 				Namespace: namespace,
-				Subsystem: "ika_sa",
+				Subsystem: subSystemIKE,
 				Name:      "packets_out_silence_duration_seconds",
 				Help:      "Duration of silences between packets out",
+				Buckets:   prometheus.ExponentialBuckets(0.1, 10, 10),
 			}, []string{}),
-			bytesIn: prometheus.NewCounterVec(prometheus.CounterOpts{
+			bytesIn: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 				Namespace: namespace,
-				Subsystem: "ika_sa",
+				Subsystem: subSystemIKE,
 				Name:      "bytes_in_total",
 				Help:      "Total number of received bytes",
-			}, []string{}),
-			bytesOut: prometheus.NewCounterVec(prometheus.CounterOpts{
+			}, []string{childSAName}),
+			bytesOut: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 				Namespace: namespace,
-				Subsystem: "ika_sa",
+				Subsystem: subSystemIKE,
 				Name:      "bytes_out_total",
 				Help:      "Total number of transmitted bytes",
-			}, []string{}),
+			}, []string{childSAName}),
 			installedSeconds: prometheus.NewCounterVec(prometheus.CounterOpts{
 				Namespace: namespace,
-				Subsystem: "ika_sa",
+				Subsystem: subSystemIKE,
 				Name:      "installs_total",
 				Help:      "Total number of SA installs",
 			}, []string{}),
 			rekeySeconds: prometheus.NewHistogramVec(prometheus.HistogramOpts{
 				Namespace: namespace,
-				Subsystem: "ika_sa",
+				Subsystem: subSystemIKE,
 				Name:      "rekey_seconds",
 				Help:      "Duration of each key session",
+				Buckets:   prometheus.ExponentialBuckets(0.1, 10800, 10), // 3 hours
 			}, []string{}),
 			lifeTimeSeconds: prometheus.NewHistogramVec(prometheus.HistogramOpts{
 				Namespace: namespace,
-				Subsystem: "ika_sa",
+				Subsystem: subSystemIKE,
 				Name:      "lifetime_seconds",
 				Help:      "Duration of each IKE session",
+				Buckets:   prometheus.ExponentialBuckets(0.1, 10800, 10), // 3 hours
 			}, []string{}),
 			state: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 				Namespace: namespace,
-				Subsystem: "ika_sa",
+				Subsystem: subSystemIKE,
 				Name:      "state_info",
 				Help:      "Current state of the SA",
 			}, []string{}),
 			childSAState: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 				Namespace: namespace,
-				Subsystem: "ika_sa",
+				Subsystem: subSystemIKE,
 				Name:      "child_state_info",
 				Help:      "Current state of the child SA",
 			}, []string{}),
 		},
 	}
 
-	r.registry.MustRegister(
+	err := register(r.registry,
 		r.version,
 		r.tcpChecker.open,
 		r.tcpChecker.connectedTotal,
-		r.tcpChecker.disconectedTotal)
-
+		r.tcpChecker.disconectedTotal,
+		r.ikeSA.establishedSeconds,
+		r.ikeSA.packetsIn,
+		r.ikeSA.packetsOut,
+		r.ikeSA.lastPacketInSeconds,
+		r.ikeSA.lastPacketOutSeconds,
+		r.ikeSA.bytesIn,
+		r.ikeSA.bytesOut,
+		r.ikeSA.installedSeconds,
+		r.ikeSA.rekeySeconds,
+		r.ikeSA.lifeTimeSeconds,
+		r.ikeSA.state,
+		r.ikeSA.childSAState,
+	)
+	if err != nil {
+		return nil, err
+	}
 	return &r, nil
+}
+
+func register(r prometheus.Registerer, collectors ...prometheus.Collector) error {
+	for _, c := range collectors {
+		err := r.Register(c)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (p *PrometheusReporter) Info(strongDucklingVersion string) {
@@ -195,6 +235,43 @@ func (r *tcpChecker) ReportPortCheck(report tcpchecker.Report) {
 }
 
 func (p *PrometheusReporter) IKESAStatus(conn vici.IKEConf, sa *vici.IkeSa) {
+	p.setEstablishedSeconds(sa)
+	for name, child := range sa.ChildSAs {
+		p.setGauge(p.ikeSA.packetsIn, child.PacketsIn, "packets in", name)
+		p.setGauge(p.ikeSA.packetsOut, child.PacketsOut, "packets out", name)
+		p.setGauge(p.ikeSA.bytesIn, child.BytesIn, "bytes in", name)
+		p.setGauge(p.ikeSA.bytesOut, child.BytesOut, "bytes out", name)
+	}
+}
+
+// setEstablishedSeconds sets gauge establishedSeconds if its value has
+// decreased from the last call to it.
+//
+// The value is ever increasing as long as the IKE session is established so we
+// should only mark the duration when it has reset, ie. a new connection is
+// established.
+func (p *PrometheusReporter) setEstablishedSeconds(sa *vici.IkeSa) {
+	f, err := strconv.ParseFloat(sa.EstablishedSeconds, 64)
+	if err != nil {
+		p.logger.Errorf("metrics: failed to convert establishedSeconds '%s' to float64: %v", sa.EstablishedSeconds, err)
+		return
+	}
+	// store the value for future reference when this call finishes
+	defer func() {
+		p.ikeSA.previousEstablishedSeconds = f
+	}()
+	if p.ikeSA.previousEstablishedSeconds > f {
+		p.ikeSA.establishedSeconds.WithLabelValues().Set(p.ikeSA.previousEstablishedSeconds)
+	}
+}
+
+func (p *PrometheusReporter) setGauge(g *prometheus.GaugeVec, value, name string, lbv ...string) {
+	f, err := strconv.ParseFloat(value, 64)
+	if err != nil {
+		p.logger.Errorf("metrics: failed to convert %s '%s' to float64: %v", name, value, err)
+		return
+	}
+	g.WithLabelValues(lbv...).Set(f)
 }
 
 func (p *PrometheusReporter) IKEConnectionConfiguration(name string, conf vici.IKEConf) {
