@@ -99,14 +99,7 @@ func main() {
 			Logger:   logger,
 			Interval: 1 * time.Second,
 			Tick: func() {
-				tcpchecker.Check(name, address, int(port), tcpchecker.CompositeReporter{
-					Reporters: []tcpchecker.Reporter{
-						&tcpchecker.LogReporter{
-							Logger: logger,
-						},
-						reporter.TcpChecker(),
-					},
-				})
+				tcpchecker.Check(name, address, int(port), tcpchecker.CompositeReporter(tcpchecker.LogReporter(logger), reporter.TcpChecker()))
 			},
 		})
 

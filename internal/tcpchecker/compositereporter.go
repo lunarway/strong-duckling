@@ -1,11 +1,17 @@
 package tcpchecker
 
-type CompositeReporter struct {
-	Reporters []Reporter
+type compositeReporter struct {
+	reporters []Reporter
 }
 
-func (r CompositeReporter) ReportPortCheck(report Report) {
-	for _, reporter := range r.Reporters {
+func (r compositeReporter) ReportPortCheck(report Report) {
+	for _, reporter := range r.reporters {
 		reporter.ReportPortCheck(report)
+	}
+}
+
+func CompositeReporter(reporters ...Reporter) Reporter {
+	return &compositeReporter{
+		reporters: reporters,
 	}
 }

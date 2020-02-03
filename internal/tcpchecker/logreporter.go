@@ -6,13 +6,13 @@ import (
 	"github.com/prometheus/common/log"
 )
 
-type LogReporter struct {
+type logReporter struct {
 	lastReport time.Time
 	lastOpen   bool
 	Logger     log.Logger
 }
 
-func (r *LogReporter) ReportPortCheck(report Report) {
+func (r *logReporter) ReportPortCheck(report Report) {
 	switch {
 	case report.Open && r.lastOpen:
 		// Port is still open - great
@@ -43,4 +43,8 @@ func (r *LogReporter) ReportPortCheck(report Report) {
 	default:
 		panic("This should never happen in LogReporter.ReportPortCheck")
 	}
+}
+
+func LogReporter(logger log.Logger) Reporter {
+	return &logReporter{Logger: logger}
 }
