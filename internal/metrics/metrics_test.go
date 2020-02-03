@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-var _ tcpchecker.Reporter = &PrometheusReporter{}
+var _ tcpchecker.Reporter = (&PrometheusReporter{}).TcpChecker()
 
 func TestIKESAStatus_gauges(t *testing.T) {
 
