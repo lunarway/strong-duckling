@@ -41,7 +41,7 @@ func main() {
 		whooper.RegisterListener(httpServer, fmt.Sprintf("http://localhost%s", *listenAddress))
 		metrics.Register(httpServer)
 	}
-	reporter, err := metrics.NewPrometheusReporter(prometheus.DefaultRegisterer)
+	prometheusReporter, err := metrics.NewPrometheusReporter(prometheus.DefaultRegisterer)
 	if err != nil {
 		log.Errorf("Failed to register metrics: %v", err)
 		os.Exit(1)
@@ -99,14 +99,7 @@ func main() {
 			Logger:   logger,
 			Interval: 1 * time.Second,
 			Tick: func() {
-				tcpchecker.Check(name, address, int(port), tcpchecker.CompositeReporter{
-					Reporters: []tcpchecker.Reporter{
-						&tcpchecker.LogReporter{
-							Logger: logger,
-						},
-						reporter.TcpChecker(),
-					},
-				})
+				tcpchecker.Check(name, address, int(port), tcpchecker.CompositeReporter(tcpchecker.LogReporter(logger), prometheusReporter.TcpChecker()))
 			},
 		})
 

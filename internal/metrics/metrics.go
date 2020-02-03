@@ -53,7 +53,7 @@ func NewPrometheusReporter(reg prometheus.Registerer) (*PrometheusReporter, erro
 			Name:      "info",
 			Help:      "Version info of strong_duckling",
 		}, []string{strongswanVersion, strongDucklingVersion}),
-		TcpChecker: &TcpChecker{
+		tcpChecker: &tcpChecker{
 			open: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 				Namespace: namespace,
 				Subsystem: subSystemTcpChecker,
@@ -75,7 +75,12 @@ func NewPrometheusReporter(reg prometheus.Registerer) (*PrometheusReporter, erro
 		},
 	}
 
-	r.registry.MustRegister(r.version, r.TcpChecker.open, r.TcpChecker.connectedTotal, r.TcpChecker.disconectedTotal)
+	r.registry.MustRegister(
+		r.version,
+		r.tcpChecker.open,
+		r.tcpChecker.connectedTotal,
+		r.tcpChecker.disconectedTotal)
+
 	return &r, nil
 }
 

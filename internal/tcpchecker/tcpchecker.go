@@ -79,5 +79,4 @@ func Check(name string, address string, port int, reporter Reporter) {
 		Error:   nil,
 		Content: output.String(),
 	})
-	return
 }

@@ -18,7 +18,7 @@ async function startTemporary(time) {
   console.log("Started server")
   await new Promise(a => setTimeout(a, time))
   startedServer.close()
-  console.log("Stoped server")
+  console.log("Stopped server")
   await new Promise(a => setTimeout(a, time))
   return startTemporary(time)
 }
