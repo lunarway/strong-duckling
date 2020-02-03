@@ -1,5 +1,10 @@
 #!/usr/bin/env bash
 
+### prefix-log script #####################################################
+# This script prefixes all output lines with the $SUPERVISOR_PROCESS_NAME
+# It is borrowed from https://serverfault.com/a/946271
+###########################################################################
+
 # setup fd-3 to point to the original stdout
 exec 3>&1
 # setup fd-4 to point to the original stderr
