@@ -43,7 +43,9 @@ func ikeSas(client *vici.ClientConn) ([]map[string]vici.IkeSa, error) {
 
 func collectSasStats(configs []map[string]vici.IKEConf, sas []map[string]vici.IkeSa, reporter Reporter) {
 	/*
-		if connection is configured and ikesa is missing somethings wrong
+		if connection is configured and ikesa is missing somethings wrong, so we
+		track the expected connections and the actual ones and can the report if
+		something is missing after looping through the child SAs.
 	*/
 	expectedConnections := make(map[string]vici.IKEConf)
 	for _, conf := range configs {
