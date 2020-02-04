@@ -1,4 +1,3 @@
-
 STRONGSWAN_DOCKER_IMAGE="philplckthun/strongswan"
 VICI_SOCKET="/tmp/strongswan"
 
