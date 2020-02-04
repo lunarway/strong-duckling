@@ -11,7 +11,7 @@ services:
       VPN_LOCAL_NETWORK: 10.101.0.1
       VPN_REMOTE_PEER: strongswan2
       VPN_REMOTE_NETWORK: 10.102.0.1
-      STRONG_DUCKLING_ARGS: "--listen :8000 --tcp-checker nodejs:10.101.0.1:8090"
+      STRONG_DUCKLING_ARGS: "--listen :8000 --tcp-checker nodejs:10.101.0.1:8090 --vici-socket /var/run/charon.vici"
     volumes:
       - type: bind
         source: ./strong-duckling-linux
@@ -30,7 +30,7 @@ services:
       VPN_LOCAL_NETWORK: 10.102.0.1
       VPN_REMOTE_PEER: strongswan1
       VPN_REMOTE_NETWORK: 10.101.0.1
-      STRONG_DUCKLING_ARGS: "--listen :8000 --tcp-checker 10.101.0.1:8090"
+      STRONG_DUCKLING_ARGS: "--listen :8000 --tcp-checker 10.101.0.1:8090 --vici-socket /var/run/charon.vici"
     ports:
       - 10001:8000
       - 10002:8080
