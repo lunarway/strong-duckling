@@ -58,19 +58,20 @@ type tcpChecker struct {
 }
 
 type ikeSA struct {
-	establishedSeconds         *prometheus.GaugeVec
-	previousEstablishedSeconds float64
-	packetsIn                  *prometheus.GaugeVec
-	packetsOut                 *prometheus.GaugeVec
-	lastPacketInSeconds        *prometheus.HistogramVec
-	lastPacketOutSeconds       *prometheus.HistogramVec
-	bytesIn                    *prometheus.GaugeVec
-	bytesOut                   *prometheus.GaugeVec
-	installedSeconds           *prometheus.CounterVec
-	rekeySeconds               *prometheus.HistogramVec
-	lifeTimeSeconds            *prometheus.HistogramVec
-	state                      *prometheus.GaugeVec
-	childSAState               *prometheus.GaugeVec
+	previousValues map[string]float64
+
+	establishedSeconds   *prometheus.GaugeVec
+	packetsIn            *prometheus.GaugeVec
+	packetsOut           *prometheus.GaugeVec
+	lastPacketInSeconds  *prometheus.HistogramVec
+	lastPacketOutSeconds *prometheus.HistogramVec
+	bytesIn              *prometheus.GaugeVec
+	bytesOut             *prometheus.GaugeVec
+	installs             *prometheus.CounterVec
+	rekeySeconds         *prometheus.HistogramVec
+	lifeTimeSeconds      *prometheus.HistogramVec
+	state                *prometheus.GaugeVec
+	childSAState         *prometheus.GaugeVec
 }
 
 func NewPrometheusReporter(reg prometheus.Registerer, logger Logger) (*PrometheusReporter, error) {
@@ -103,6 +104,7 @@ func NewPrometheusReporter(reg prometheus.Registerer, logger Logger) (*Prometheu
 			}, []string{"name", "address", "port"}),
 		},
 		ikeSA: ikeSA{
+			previousValues: make(map[string]float64),
 			establishedSeconds: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 				Namespace: namespace,
 				Subsystem: subSystemIKE,
@@ -147,7 +149,7 @@ func NewPrometheusReporter(reg prometheus.Registerer, logger Logger) (*Prometheu
 				Name:      "bytes_out_total",
 				Help:      "Total number of transmitted bytes",
 			}, []string{childSAName}),
-			installedSeconds: prometheus.NewCounterVec(prometheus.CounterOpts{
+			installs: prometheus.NewCounterVec(prometheus.CounterOpts{
 				Namespace: namespace,
 				Subsystem: subSystemIKE,
 				Name:      "installs_total",
@@ -157,8 +159,8 @@ func NewPrometheusReporter(reg prometheus.Registerer, logger Logger) (*Prometheu
 				Namespace: namespace,
 				Subsystem: subSystemIKE,
 				Name:      "rekey_seconds",
-				Help:      "Duration of each key session",
-				Buckets:   prometheus.ExponentialBuckets(0.1, 10800, 10), // 3 hours
+				Help:      "Duration between re-keying",
+				Buckets:   []float64{10, 30, 60, 120, 300, 480, 600},
 			}, []string{}),
 			lifeTimeSeconds: prometheus.NewHistogramVec(prometheus.HistogramOpts{
 				Namespace: namespace,
@@ -194,7 +196,7 @@ func NewPrometheusReporter(reg prometheus.Registerer, logger Logger) (*Prometheu
 		r.ikeSA.lastPacketOutSeconds,
 		r.ikeSA.bytesIn,
 		r.ikeSA.bytesOut,
-		r.ikeSA.installedSeconds,
+		r.ikeSA.installs,
 		r.ikeSA.rekeySeconds,
 		r.ikeSA.lifeTimeSeconds,
 		r.ikeSA.state,
@@ -235,34 +237,108 @@ func (r *tcpChecker) ReportPortCheck(report tcpchecker.Report) {
 }
 
 func (p *PrometheusReporter) IKESAStatus(conn vici.IKEConf, sa *vici.IkeSa) {
-	p.setEstablishedSeconds(sa)
+	p.setGaugeByMax(p.ikeSA.establishedSeconds, sa.EstablishedSeconds, "EstablishedSeconds")
 	for name, child := range sa.ChildSAs {
-		p.setGauge(p.ikeSA.packetsIn, child.PacketsIn, "packets in", name)
-		p.setGauge(p.ikeSA.packetsOut, child.PacketsOut, "packets out", name)
-		p.setGauge(p.ikeSA.bytesIn, child.BytesIn, "bytes in", name)
-		p.setGauge(p.ikeSA.bytesOut, child.BytesOut, "bytes out", name)
+		p.setCounterByMax(p.ikeSA.installs, child.InstallTimeSeconds, "InstallTimeSeconds")
+		p.setGauge(p.ikeSA.packetsIn, child.PacketsIn, "PacketsIn", name)
+		p.setGauge(p.ikeSA.packetsOut, child.PacketsOut, "PacketsOut", name)
+		p.setGauge(p.ikeSA.bytesIn, child.BytesIn, "BytesIn", name)
+		p.setGauge(p.ikeSA.bytesOut, child.BytesOut, "BytesOut", name)
+		p.setHistogramByMax(p.ikeSA.lastPacketInSeconds, child.LastPacketInSeconds, "LastPacketInSeconds")
+		p.setHistogramByMax(p.ikeSA.lastPacketOutSeconds, child.LastPacketOutSeconds, "LastPacketOutSeconds")
+		p.setHistogramByMin(p.ikeSA.rekeySeconds, child.RekeyTimeSeconds, "RekeyTimeSeconds")
+		p.setHistogramByMax(p.ikeSA.lifeTimeSeconds, child.LifeTimeSeconds, "LifeTimeSeconds")
+		p.setRekeySeconds(conn, child)
 	}
 }
 
-// setEstablishedSeconds sets gauge establishedSeconds if its value has
-// decreased from the last call to it.
-//
-// The value is ever increasing as long as the IKE session is established so we
-// should only mark the duration when it has reset, ie. a new connection is
-// established.
-func (p *PrometheusReporter) setEstablishedSeconds(sa *vici.IkeSa) {
-	f, err := strconv.ParseFloat(sa.EstablishedSeconds, 64)
-	if err != nil {
-		p.logger.Errorf("metrics: failed to convert establishedSeconds '%s' to float64: %v", sa.EstablishedSeconds, err)
+func (p *PrometheusReporter) setRekeySeconds(conn vici.IKEConf, child vici.ChildSA) {
+	// RekeyTimeSeconds on the conn conf is the start value and on the child the
+	// time left from this value. We want to track how long each rekey session
+	// was, ie. the ellapsed time from max to when it increases again. This is
+	// done by finding a min value on the child field and subtracting that from
+	// the max value on the conf.
+	minRekeyTimeSeconds, ok := p.minValue("RekeyTimeSeconds", child.RekeyTimeSeconds)
+	p.logger.Errorf("Deteceted min rekey: %v %v", ok, minRekeyTimeSeconds)
+	if !ok {
 		return
+	}
+	connRekeyTimeSeconds, err := strconv.ParseFloat(conn.RekeyTimeSeconds, 64)
+	if err != nil {
+		p.logger.Errorf("metrics: failed to convert RekeyTimeSeconds '%s' to float64: %v", conn.RekeyTimeSeconds, err)
+		return
+	}
+	p.ikeSA.rekeySeconds.WithLabelValues().Observe(connRekeyTimeSeconds - minRekeyTimeSeconds)
+}
+
+func (p *PrometheusReporter) setCounterByMax(c *prometheus.CounterVec, value, name string) {
+	_, ok := p.maxValue(name, value)
+	if !ok {
+		return
+	}
+	c.WithLabelValues().Inc()
+}
+
+func (p *PrometheusReporter) setGaugeByMax(g *prometheus.GaugeVec, value, name string) {
+	max, ok := p.maxValue(name, value)
+	if !ok {
+		return
+	}
+	g.WithLabelValues().Set(max)
+}
+
+func (p *PrometheusReporter) setHistogramByMax(h *prometheus.HistogramVec, value, name string) {
+	max, ok := p.maxValue(name, value)
+	if !ok {
+		return
+	}
+	h.WithLabelValues().Observe(max)
+}
+
+func (p *PrometheusReporter) setHistogramByMin(h *prometheus.HistogramVec, value, name string) {
+	max, ok := p.minValue(name, value)
+	if !ok {
+		return
+	}
+	h.WithLabelValues().Observe(max)
+}
+
+// maxValue detects the max value of value. If max is detected the returned
+// bool is true otherwise it returns the current value.
+func (p *PrometheusReporter) maxValue(name, value string) (float64, bool) {
+	f, err := strconv.ParseFloat(value, 64)
+	if err != nil {
+		p.logger.Errorf("metrics: failed to convert %s '%s' to float64: %v", name, value, err)
+		return 0, false
 	}
 	// store the value for future reference when this call finishes
 	defer func() {
-		p.ikeSA.previousEstablishedSeconds = f
+		p.ikeSA.previousValues[name] = f
 	}()
-	if p.ikeSA.previousEstablishedSeconds > f {
-		p.ikeSA.establishedSeconds.WithLabelValues().Set(p.ikeSA.previousEstablishedSeconds)
+	previousValue, ok := p.ikeSA.previousValues[name]
+	if ok && previousValue > f {
+		return previousValue, true
 	}
+	return f, false
+}
+
+// minValue detects the min value of value. If min is detected the returned
+// bool is true otherwise it returns the current value.
+func (p *PrometheusReporter) minValue(name, value string) (float64, bool) {
+	f, err := strconv.ParseFloat(value, 64)
+	if err != nil {
+		p.logger.Errorf("metrics: failed to convert %s '%s' to float64: %v", name, value, err)
+		return 0, false
+	}
+	// store the value for future reference when this call finishes
+	defer func() {
+		p.ikeSA.previousValues[name] = f
+	}()
+	previousValue, ok := p.ikeSA.previousValues[name]
+	if ok && previousValue < f {
+		return previousValue, true
+	}
+	return f, false
 }
 
 func (p *PrometheusReporter) setGauge(g *prometheus.GaugeVec, value, name string, lbv ...string) {

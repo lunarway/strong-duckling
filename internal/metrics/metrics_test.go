@@ -15,7 +15,6 @@ import (
 var _ tcpchecker.Reporter = (&PrometheusReporter{}).TcpChecker()
 
 func TestIKESAStatus_gauges(t *testing.T) {
-
 	tt := []struct {
 		name                                     string
 		conf                                     vici.IKEConf
@@ -60,26 +59,30 @@ func TestIKESAStatus_gauges(t *testing.T) {
 	}
 }
 
-func TestIKESAStatus_establishedSeconds(t *testing.T) {
-	float := func(f float64) *float64 {
-		return &f
-	}
+func TestIKESAStatus_installs(t *testing.T) {
 	tt := []struct {
-		name              string
-		establishedValues []string
-		result            *float64
+		name               string
+		installTimeSeconds []string
+		installsSet        bool
+		installs           float64
 	}{
 		{
-			name:              "increasing value",
-			establishedValues: []string{"1", "2", "3"},
-			result:            nil,
+			name:               "single value",
+			installTimeSeconds: []string{"1"},
+			installsSet:        false,
+			installs:           0,
 		},
 		{
-			// we are not sure to know if we have reached the max so we should only
-			// set the metric if has decreased, ie. connection reset.
-			name:              "set previous when new is below",
-			establishedValues: []string{"1", "2", "3", "1"},
-			result:            float(3),
+			name:               "max value",
+			installTimeSeconds: []string{"1", "2", "3", "1"},
+			installsSet:        true,
+			installs:           1,
+		},
+		{
+			name:               "multiple max value",
+			installTimeSeconds: []string{"1", "2", "3", "1", "2", "1"},
+			installsSet:        true,
+			installs:           2,
 		},
 	}
 	for _, tc := range tt {
@@ -91,19 +94,235 @@ func TestIKESAStatus_establishedSeconds(t *testing.T) {
 				return
 			}
 
-			for _, s := range tc.establishedValues {
+			for _, s := range tc.installTimeSeconds {
 				p.IKESAStatus(vici.IKEConf{}, &vici.IkeSa{
-					EstablishedSeconds: s,
+					ChildSAs: map[string]vici.ChildSA{
+						"net-0": vici.ChildSA{
+							InstallTimeSeconds: s,
+						},
+					},
 				})
 			}
-
-			if tc.result == nil {
+			if !tc.installsSet {
 				// this validates that no metrics are collected on the registry
 				err = testutil.GatherAndCompare(reg, strings.NewReader(``))
 				assert.NoError(t, err, "unexpected error from gathering metrics")
 				return
 			}
-			assert.Equal(t, *tc.result, testutil.ToFloat64(p.ikeSA.establishedSeconds), "establishedSeconds not as expected")
+			assert.Equal(t, tc.installs, testutil.ToFloat64(p.ikeSA.installs), "installs not as expected")
+		})
+	}
+}
+func TestIKESAStatus_rekeySeconds(t *testing.T) {
+	tt := []struct {
+		name             string
+		connRekeySeconds string
+		rekeySeconds     []string
+		rekeySet         bool
+		histogram        string
+	}{
+		{
+			name:             "single value",
+			connRekeySeconds: "10",
+			rekeySeconds:     []string{"1"},
+			rekeySet:         false,
+			histogram:        "",
+		},
+		{
+			name:             "single min value",
+			connRekeySeconds: "100",
+			rekeySeconds:     []string{"50", "40", "30", "90"},
+			rekeySet:         true,
+			histogram: `# HELP strong_duckling_ike_sa_rekey_seconds Duration between re-keying
+# TYPE strong_duckling_ike_sa_rekey_seconds histogram
+strong_duckling_ike_sa_rekey_seconds_bucket{le="10"} 0
+strong_duckling_ike_sa_rekey_seconds_bucket{le="30"} 1
+strong_duckling_ike_sa_rekey_seconds_bucket{le="60"} 1
+strong_duckling_ike_sa_rekey_seconds_bucket{le="120"} 1
+strong_duckling_ike_sa_rekey_seconds_bucket{le="300"} 1
+strong_duckling_ike_sa_rekey_seconds_bucket{le="480"} 1
+strong_duckling_ike_sa_rekey_seconds_bucket{le="600"} 1
+strong_duckling_ike_sa_rekey_seconds_bucket{le="+Inf"} 1
+strong_duckling_ike_sa_rekey_seconds_sum 30
+strong_duckling_ike_sa_rekey_seconds_count 1
+`,
+		},
+		{
+			name:             "multiple min values",
+			connRekeySeconds: "100",
+			rekeySeconds:     []string{"50", "40", "30", "90", "50", "100"},
+			rekeySet:         true,
+			histogram: `# HELP strong_duckling_ike_sa_rekey_seconds Duration between re-keying
+# TYPE strong_duckling_ike_sa_rekey_seconds histogram
+strong_duckling_ike_sa_rekey_seconds_bucket{le="10"} 0
+strong_duckling_ike_sa_rekey_seconds_bucket{le="30"} 1
+strong_duckling_ike_sa_rekey_seconds_bucket{le="60"} 2
+strong_duckling_ike_sa_rekey_seconds_bucket{le="120"} 2
+strong_duckling_ike_sa_rekey_seconds_bucket{le="300"} 2
+strong_duckling_ike_sa_rekey_seconds_bucket{le="480"} 2
+strong_duckling_ike_sa_rekey_seconds_bucket{le="600"} 2
+strong_duckling_ike_sa_rekey_seconds_bucket{le="+Inf"} 2
+strong_duckling_ike_sa_rekey_seconds_sum 80
+strong_duckling_ike_sa_rekey_seconds_count 2
+`,
+		},
+	}
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			reg := prometheus.NewRegistry()
+			logger := test.NewLogger(t)
+			p, err := NewPrometheusReporter(reg, logger)
+			if !assert.NoError(t, err, "unexpected initialization error") {
+				return
+			}
+
+			for _, s := range tc.rekeySeconds {
+				p.IKESAStatus(vici.IKEConf{
+					RekeyTimeSeconds: tc.connRekeySeconds,
+				}, &vici.IkeSa{
+					ChildSAs: map[string]vici.ChildSA{
+						"net-0": vici.ChildSA{
+							RekeyTimeSeconds: s,
+						},
+					},
+				})
+			}
+			// if !tc.rekeySet {
+			// this validates that no metrics are collected on the registry
+			err = testutil.GatherAndCompare(reg, strings.NewReader(tc.histogram))
+			assert.NoError(t, err, "unexpected error from gathering metrics")
+			// 	return
+			// }
+			// assert.Equal(t, tc.rekeyDuration, testutil.ToFloat64(p.ikeSA.rekeySeconds), "rekey not as expected")
+		})
+	}
+}
+
+func TestPrometheusReporter_maxValue(t *testing.T) {
+	tt := []struct {
+		name   string
+		values []string
+		output float64
+		ok     bool
+	}{
+		{
+			name:   "single value",
+			values: []string{"1"},
+			output: 1,
+			ok:     false,
+		},
+		{
+			name:   "increasing values",
+			values: []string{"1", "2", "3"},
+			output: 3,
+			ok:     false,
+		},
+		{
+			name:   "decreasing values",
+			values: []string{"3", "2", "1"},
+			output: 2,
+			ok:     true,
+		},
+		{
+			name:   "values have a max",
+			values: []string{"1", "2", "3", "1"},
+			output: 3,
+			ok:     true,
+		},
+		{
+			name:   "values have a min",
+			values: []string{"3", "2", "1", "2"},
+			output: 2,
+			ok:     false,
+		},
+		{
+			name:   "values are equal",
+			values: []string{"1", "1", "1", "1"},
+			output: 1,
+			ok:     false,
+		},
+	}
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			reg := prometheus.NewRegistry()
+			logger := test.NewLogger(t)
+			p, err := NewPrometheusReporter(reg, logger)
+			if !assert.NoError(t, err, "unexpected initialization error") {
+				return
+			}
+
+			var v float64
+			var ok bool
+			for _, s := range tc.values {
+				v, ok = p.maxValue("test", s)
+			}
+
+			assert.Equal(t, tc.ok, ok, "ok indication not as expected")
+			assert.Equal(t, tc.output, v, "value not as expected")
+		})
+	}
+}
+func TestPrometheusReporter_minValue(t *testing.T) {
+	tt := []struct {
+		name   string
+		values []string
+		output float64
+		ok     bool
+	}{
+		{
+			name:   "single value",
+			values: []string{"1"},
+			output: 1,
+			ok:     false,
+		},
+		{
+			name:   "increasing values",
+			values: []string{"1", "2", "3"},
+			output: 2,
+			ok:     true,
+		},
+		{
+			name:   "decreasing values",
+			values: []string{"3", "2", "1"},
+			output: 1,
+			ok:     false,
+		},
+		{
+			name:   "values have a max",
+			values: []string{"1", "2", "3", "1"},
+			output: 1,
+			ok:     false,
+		},
+		{
+			name:   "values have a min",
+			values: []string{"3", "2", "1", "2"},
+			output: 1,
+			ok:     true,
+		},
+		{
+			name:   "values are equal",
+			values: []string{"1", "1", "1", "1"},
+			output: 1,
+			ok:     false,
+		},
+	}
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			reg := prometheus.NewRegistry()
+			logger := test.NewLogger(t)
+			p, err := NewPrometheusReporter(reg, logger)
+			if !assert.NoError(t, err, "unexpected initialization error") {
+				return
+			}
+
+			var v float64
+			var ok bool
+			for _, s := range tc.values {
+				v, ok = p.minValue("test", s)
+			}
+
+			assert.Equal(t, tc.ok, ok, "ok indication not as expected")
+			assert.Equal(t, tc.output, v, "value not as expected")
 		})
 	}
 }

@@ -22,7 +22,6 @@ The application exposes Prometheus metrics on `/metrics` for general insight int
 | `strong_duckling_ike_sa_bytes_in_total`                       | Counter   |        | Total number of received bytes           |
 | `strong_duckling_ike_sa_bytes_out_total`                      | Counter   |        | Total number of transmitted bytes        |
 | `strong_duckling_ike_sa_installs_total`                       | Counter   |        | Total number of SA installs              |
-| `strong_duckling_ike_sa_rekey_seconds`                        | Histogram |        | Duration of each key session             |
 | `strong_duckling_ike_sa_rekey_seconds`                        | Histogram |        | Duration between re-keying               |
 | `strong_duckling_ike_sa_lifetime_seconds`                     | Histogram |        | Duration of child SA connections         |
 | `strong_duckling_ike_sa_state_info`                           | Gauge     |        | Metadata on the state of the SA          |
