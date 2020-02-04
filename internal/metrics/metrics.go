@@ -279,7 +279,12 @@ func (p *PrometheusReporter) setRekeySeconds(conn vici.IKEConf, child vici.Child
 }
 
 func (p *PrometheusReporter) setCounterByMax(c *prometheus.CounterVec, value, name string) {
-	_, ok := p.maxValue(name, value)
+	// if this is the first time it is called it should be increased as well
+	_, ok := p.ikeSA.previousValues[name]
+	if !ok {
+		c.WithLabelValues().Inc()
+	}
+	_, ok = p.maxValue(name, value)
 	if !ok {
 		return
 	}

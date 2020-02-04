@@ -63,26 +63,22 @@ func TestIKESAStatus_installs(t *testing.T) {
 	tt := []struct {
 		name               string
 		installTimeSeconds []string
-		installsSet        bool
 		installs           float64
 	}{
 		{
 			name:               "single value",
 			installTimeSeconds: []string{"1"},
-			installsSet:        false,
-			installs:           0,
+			installs:           1,
 		},
 		{
 			name:               "max value",
 			installTimeSeconds: []string{"1", "2", "3", "1"},
-			installsSet:        true,
-			installs:           1,
+			installs:           2,
 		},
 		{
 			name:               "multiple max value",
 			installTimeSeconds: []string{"1", "2", "3", "1", "2", "1"},
-			installsSet:        true,
-			installs:           2,
+			installs:           3,
 		},
 	}
 	for _, tc := range tt {
@@ -102,12 +98,6 @@ func TestIKESAStatus_installs(t *testing.T) {
 						},
 					},
 				})
-			}
-			if !tc.installsSet {
-				// this validates that no metrics are collected on the registry
-				err = testutil.GatherAndCompare(reg, strings.NewReader(``))
-				assert.NoError(t, err, "unexpected error from gathering metrics")
-				return
 			}
 			assert.Equal(t, tc.installs, testutil.ToFloat64(p.ikeSA.installs), "installs not as expected")
 		})
@@ -189,7 +179,7 @@ strong_duckling_ike_sa_rekey_seconds_count 2
 			}
 			// if !tc.rekeySet {
 			// this validates that no metrics are collected on the registry
-			err = testutil.GatherAndCompare(reg, strings.NewReader(tc.histogram))
+			err = testutil.GatherAndCompare(reg, strings.NewReader(tc.histogram), "strong_duckling_ike_sa_rekey_seconds")
 			assert.NoError(t, err, "unexpected error from gathering metrics")
 			// 	return
 			// }
@@ -347,7 +337,10 @@ func TestIKESAStatus_labels(t *testing.T) {
 					},
 				},
 			},
-			output: `# HELP strong_duckling_ike_sa_packets_in_total Total number of received packets
+			output: `# HELP strong_duckling_ike_sa_installs_total Total number of SA installs
+# TYPE strong_duckling_ike_sa_installs_total counter
+strong_duckling_ike_sa_installs_total 1
+# HELP strong_duckling_ike_sa_packets_in_total Total number of received packets
 # TYPE strong_duckling_ike_sa_packets_in_total gauge
 strong_duckling_ike_sa_packets_in_total{child_sa_name="net-1"} 123
 # HELP strong_duckling_ike_sa_packets_out_total Total number of transmitted packets
