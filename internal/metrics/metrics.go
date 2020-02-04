@@ -278,6 +278,15 @@ func (p *PrometheusReporter) setRekeySeconds(conn vici.IKEConf, child vici.Child
 	p.ikeSA.rekeySeconds.WithLabelValues().Observe(connRekeyTimeSeconds - minRekeyTimeSeconds)
 }
 
+func (p *PrometheusReporter) setGauge(g *prometheus.GaugeVec, value, name string, lbv ...string) {
+	f, err := strconv.ParseFloat(value, 64)
+	if err != nil {
+		p.logger.Errorf("metrics: failed to convert %s '%s' to float64: %v", name, value, err)
+		return
+	}
+	g.WithLabelValues(lbv...).Set(f)
+}
+
 func (p *PrometheusReporter) setCounterByMax(c *prometheus.CounterVec, value, name string) {
 	// if this is the first time it is called it should be increased as well
 	_, ok := p.ikeSA.previousValues[name]
@@ -351,13 +360,4 @@ func (p *PrometheusReporter) minValue(name, value string) (float64, bool) {
 		return previousValue, true
 	}
 	return f, false
-}
-
-func (p *PrometheusReporter) setGauge(g *prometheus.GaugeVec, value, name string, lbv ...string) {
-	f, err := strconv.ParseFloat(value, 64)
-	if err != nil {
-		p.logger.Errorf("metrics: failed to convert %s '%s' to float64: %v", name, value, err)
-		return
-	}
-	g.WithLabelValues(lbv...).Set(f)
 }
