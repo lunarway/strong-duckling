@@ -8,7 +8,6 @@ import (
 )
 
 type Reporter interface {
-	IKEConnectionConfiguration(string, vici.IKEConf)
 	IKESAStatus(conn vici.IKEConf, sa *vici.IkeSa)
 }
 
@@ -18,8 +17,6 @@ func Collect(client *vici.ClientConn, reporter Reporter) {
 		log.Errorf("Failed to get strongswan connections: %v", err)
 		return
 	}
-	collectConnectionStats(conns, reporter)
-
 	sas, err := ikeSas(client)
 	if err != nil {
 		log.Errorf("Failed to get strongswan sas: %v", err)
@@ -42,16 +39,6 @@ func ikeSas(client *vici.ClientConn) ([]map[string]vici.IkeSa, error) {
 		return nil, fmt.Errorf("list vici sas: %w", err)
 	}
 	return sasList, nil
-}
-
-func collectConnectionStats(conns []map[string]vici.IKEConf, reporter Reporter) {
-	log.Infof("Connections: %d", len(conns))
-	for _, connection := range conns {
-		for ikeName, ike := range connection {
-			log.Infof("  ikeName: %s: ike: %#v", ikeName, ike)
-			reporter.IKEConnectionConfiguration(ikeName, ike)
-		}
-	}
 }
 
 func collectSasStats(configs []map[string]vici.IKEConf, sas []map[string]vici.IkeSa, reporter Reporter) {

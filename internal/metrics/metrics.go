@@ -352,6 +352,3 @@ func (p *PrometheusReporter) setGauge(g *prometheus.GaugeVec, value, name string
 	}
 	g.WithLabelValues(lbv...).Set(f)
 }
-
-func (p *PrometheusReporter) IKEConnectionConfiguration(name string, conf vici.IKEConf) {
-}
