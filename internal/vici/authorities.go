@@ -25,7 +25,7 @@ func (c *ClientConn) LoadAuthority(auth Authorities) error {
 		return err
 	}
 	if msg["success"] != "yes" {
-		return fmt.Errorf("unsuccessful LoadAuthority: %v", msg["success"])
+		return fmt.Errorf("unsuccessful LoadAuthority: %v", msg["errmsg"])
 	}
 
 	return nil

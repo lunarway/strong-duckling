@@ -53,7 +53,7 @@ func (c *ClientConn) loadPrivateKey(typ, data string) error {
 		return fmt.Errorf("request: %w", err)
 	}
 	if msg["success"] != "yes" {
-		return fmt.Errorf("unsuccessful loadPrivateKey: %v", msg["success"])
+		return fmt.Errorf("unsuccessful loadPrivateKey: %v", msg["errmsg"])
 	}
 
 	return nil
