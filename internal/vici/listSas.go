@@ -139,7 +139,7 @@ func (c *ClientConn) ListSas(ike string, ike_id string) ([]map[string]IkeSa, err
 	//register event
 	err := c.RegisterEvent("list-sa", func(response map[string]interface{}) {
 		sa := &map[string]IkeSa{}
-		err := ConvertFromGeneral(response, sa)
+		err := convertFromGeneral(response, sa)
 		if err != nil {
 			eventErr = err
 			return

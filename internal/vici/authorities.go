@@ -22,7 +22,7 @@ type AuthorityMapping struct {
 func (c *ClientConn) LoadAuthority(auth Authorities) error {
 	requestMap := map[string]interface{}{}
 
-	err := ConvertToGeneral(auth.AuthorityMapping, &requestMap)
+	err := convertToGeneral(auth.AuthorityMapping, &requestMap)
 	if err != nil {
 		return fmt.Errorf("error creating request: %v", err)
 	}
@@ -44,7 +44,7 @@ type UnloadAuthorityRequest struct {
 
 func (c *ClientConn) UnloadAuthority(r *UnloadAuthorityRequest) error {
 	reqMap := &map[string]interface{}{}
-	err := ConvertToGeneral(r, reqMap)
+	err := convertToGeneral(r, reqMap)
 	if err != nil {
 		return err
 	}

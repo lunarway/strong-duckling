@@ -48,7 +48,7 @@ func mapConnections(response map[string]interface{}) (map[string]IKEConf, error)
 	// first parse sets all fields of the IKE conf except the dynamic AuthConf
 	// sections
 	conn := map[string]IKEConf{}
-	err := ConvertFromGeneral(response, &conn)
+	err := convertFromGeneral(response, &conn)
 	if err != nil {
 		return nil, fmt.Errorf("map base conn: %w", err)
 	}
@@ -57,7 +57,7 @@ func mapConnections(response map[string]interface{}) (map[string]IKEConf, error)
 	// IKEConf type separated by their key prefixes local-* and remote-*
 
 	rawIKEConf := make(map[string]map[string]json.RawMessage)
-	err = ConvertFromGeneral(response, &rawIKEConf)
+	err = convertFromGeneral(response, &rawIKEConf)
 	if err != nil {
 		return nil, fmt.Errorf("map auth sections: %w", err)
 	}

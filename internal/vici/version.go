@@ -14,7 +14,7 @@ func (c *ClientConn) Version() (*Version, error) {
 		return nil, err
 	}
 	out := &Version{}
-	err = ConvertFromGeneral(msg, out)
+	err = convertFromGeneral(msg, out)
 	if err != nil {
 		return nil, err
 	}

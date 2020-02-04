@@ -163,7 +163,7 @@ func handleIkeUpDown(eventName string, callback MonitorCallBack, response map[st
 			event.Up = true
 		} else {
 			sa := &EventIkeSAUpDown{}
-			err := ConvertFromGeneral(value, sa)
+			err := convertFromGeneral(value, sa)
 			if err != nil {
 				return fmt.Errorf("convert from general: %w", err)
 			}
@@ -181,7 +181,7 @@ func handleIkeRekey(eventName string, callback MonitorCallBack, response map[str
 	for name := range response {
 		value := response[name]
 		sa := &EventIkeRekeyPair{}
-		err := ConvertFromGeneral(value, sa)
+		err := convertFromGeneral(value, sa)
 		if err != nil {
 			return fmt.Errorf("convert from general: %w", err)
 		}
@@ -201,7 +201,7 @@ func handleChildUpDown(eventName string, callback MonitorCallBack, response map[
 			event.Up = true
 		} else {
 			sa := &EventIkeSAUpDown{}
-			err := ConvertFromGeneral(value, sa)
+			err := convertFromGeneral(value, sa)
 			if err != nil {
 				return fmt.Errorf("convert from general: %w", err)
 			}
@@ -219,7 +219,7 @@ func handleChildRekey(eventName string, callback MonitorCallBack, response map[s
 	for name := range response {
 		value := response[name]
 		sa := &EventIkeRekeySA{}
-		err := ConvertFromGeneral(value, sa)
+		err := convertFromGeneral(value, sa)
 		if err != nil {
 			return fmt.Errorf("convert from general: %w", err)
 		}

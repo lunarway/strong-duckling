@@ -54,7 +54,7 @@ func (c *ClientConn) Stats() (Stats, error) {
 		return Stats{}, err
 	}
 	var stats Stats
-	err = ConvertFromGeneral(msg, &stats)
+	err = convertFromGeneral(msg, &stats)
 	if err != nil {
 		return Stats{}, err
 	}

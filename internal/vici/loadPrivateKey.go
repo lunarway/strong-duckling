@@ -51,7 +51,7 @@ func (c *ClientConn) loadPrivateKey(typ, data string) error {
 		Typ:  typ,
 		Data: data,
 	}
-	err := ConvertToGeneral(k, requestMap)
+	err := convertToGeneral(k, requestMap)
 	if err != nil {
 		return fmt.Errorf("convert to general: %w", err)
 	}

@@ -18,7 +18,7 @@ type TerminateRequest struct {
 //Terminates an SA while streaming control-log events.
 func (c *ClientConn) Terminate(r *TerminateRequest) error {
 	reqMap := &map[string]interface{}{}
-	err := ConvertToGeneral(r, reqMap)
+	err := convertToGeneral(r, reqMap)
 	if err != nil {
 		return err
 	}

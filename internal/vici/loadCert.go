@@ -18,7 +18,7 @@ func (c *ClientConn) LoadCertificate(s string, typ string, flag string) error {
 		Flag: flag,
 		Data: s,
 	}
-	err := ConvertToGeneral(k, requestMap)
+	err := convertToGeneral(k, requestMap)
 	if err != nil {
 		return fmt.Errorf("error creating request: %w", err)
 	}
