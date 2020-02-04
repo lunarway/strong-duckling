@@ -35,7 +35,7 @@ func main() {
 	log.AddFlags(flags)
 	flags.HelpFlag.Short('h')
 	flags.Version(version)
-	socket := flags.Flag("socket", "VPN socket to connect to").Default("/var/run/charon.vici").String()
+	socket := flags.Flag("vici-socket", "VICI (charon.vici) socket to connect to. Usually /var/run/charon.vici").String()
 	kingpin.MustParse(flags.Parse(os.Args[1:]))
 
 	whooper := whooping.Whooper{}
@@ -111,16 +111,21 @@ func main() {
 		go func() {
 			defer shutdownWg.Done()
 			tcpCheckerDaemon.Loop(shutdown)
+			log.Infof("tcp checker daemon stopped. Terminating...")
+			componentDone <- nil
 		}()
 	}
 
 	if *listenAddress != "" {
 		go func() {
 			// no shutdown mechanism in place for the HTTP server
-			componentDone <- http.Start(httpServer, *listenAddress)
+			err := http.Start(httpServer, *listenAddress)
+			log.Infof("http server stopped. Terminating...")
+			componentDone <- err
 		}()
 	}
 
+	shutdownWg.Add(1)
 	go func() {
 		defer shutdownWg.Done()
 		sigs := make(chan os.Signal, 1)
@@ -133,32 +138,37 @@ func main() {
 		}
 	}()
 
-	conn, err := net.Dial("unix", *socket)
-	if err != nil {
-		log.Errorf("Failed to establish socket connection to vici: %v", err)
-		os.Exit(1)
+	if len(*socket) != 0 {
+		conn, err := net.Dial("unix", *socket)
+		if err != nil {
+			log.Errorf("Failed to establish socket connection to vici: %v", err)
+			os.Exit(1)
+		}
+		defer conn.Close()
+		client := vici.NewClientConn(conn)
+		defer client.Close()
+
+		d := daemon.New(daemon.Configuration{
+			Logger:   log.Base(),
+			Interval: 2 * time.Second,
+			Tick: func() {
+				strongswan.Collect(client, prometheusReporter)
+			},
+		})
+
+		go func() {
+			d.Loop(shutdown)
+			log.Infof("vici strongswan checker daemon stopped. Terminating...")
+			componentDone <- nil
+		}()
 	}
-	defer conn.Close()
-	client := vici.NewClientConn(conn)
-	defer client.Close()
-
-	d := daemon.New(daemon.Configuration{
-		Logger:   log.Base(),
-		Interval: 2 * time.Second,
-		Tick: func() {
-			strongswan.Collect(client, prometheusReporter)
-		},
-	})
-
-	go func() {
-		d.Loop(shutdown)
-		componentDone <- nil
-	}()
 
 	err = runningVersion(version, prometheusReporter)
 	if err != nil {
 		componentDone <- fmt.Errorf("failed to expose version info as metrics: %v", err)
 	}
+
+	// this is blocking until some component fails of a signal is received
 	reason := <-componentDone
 
 	close(shutdown)
