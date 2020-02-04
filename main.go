@@ -14,7 +14,7 @@ import (
 	"github.com/lunarway/strong-duckling/internal/daemon"
 	"github.com/lunarway/strong-duckling/internal/http"
 	"github.com/lunarway/strong-duckling/internal/metrics"
-	"github.com/lunarway/strong-duckling/internal/stats"
+	"github.com/lunarway/strong-duckling/internal/strongswan"
 	"github.com/lunarway/strong-duckling/internal/tcpchecker"
 	"github.com/lunarway/strong-duckling/internal/vici"
 	"github.com/lunarway/strong-duckling/internal/whooping"
@@ -146,7 +146,7 @@ func main() {
 		Logger:   log.Base(),
 		Interval: 2 * time.Second,
 		Tick: func() {
-			stats.Collect(client, prometheusReporter)
+			strongswan.Collect(client, prometheusReporter)
 		},
 	})
 
@@ -155,7 +155,7 @@ func main() {
 		componentDone <- nil
 	}()
 
-	err = stats.RunningVersion(version, prometheusReporter)
+	err = runningVersion(version, prometheusReporter)
 	if err != nil {
 		componentDone <- fmt.Errorf("failed to expose version info as metrics: %v", err)
 	}
@@ -169,4 +169,10 @@ func main() {
 	} else {
 		log.Info("exited due to a component shutting down")
 	}
+}
+
+func runningVersion(version string, reporter *metrics.PrometheusReporter) error {
+	log.Infof("Strong duckling version %s", version)
+	reporter.Info(version)
+	return nil
 }

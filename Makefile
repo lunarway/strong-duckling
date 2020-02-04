@@ -22,4 +22,4 @@ build:
 MOCKERY_ARGS=-case=underscore -inpkg -testonly
 generate/mock:
 	go get github.com/vektra/mockery/.../
-	mockery $(MOCKERY_ARGS) -dir internal/stats -name .*Reporter
+	mockery $(MOCKERY_ARGS) -dir internal/strongswan -name .*Reporter

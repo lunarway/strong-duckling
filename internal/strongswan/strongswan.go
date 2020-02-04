@@ -1,4 +1,4 @@
-package stats
+package strongswan
 
 import (
 	"fmt"
@@ -68,14 +68,4 @@ func collectSasStats(configs []map[string]vici.IKEConf, sas []map[string]vici.Ik
 	for _, conf := range expectedConnections {
 		reporter.IKESAStatus(conf, nil)
 	}
-}
-
-type infoReporter interface {
-	Info(buildVersion string)
-}
-
-func RunningVersion(version string, reporter infoReporter) error {
-	log.Infof("Strong duckling version %s", version)
-	reporter.Info(version)
-	return nil
 }
