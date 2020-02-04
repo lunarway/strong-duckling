@@ -332,11 +332,9 @@ func (p *PrometheusReporter) maxValue(name, value string) (float64, bool) {
 		p.logger.Errorf("metrics: failed to convert %s '%s' to float64: %v", name, value, err)
 		return 0, false
 	}
-	// store the value for future reference when this call finishes
-	defer func() {
-		p.ikeSA.previousValues[name] = f
-	}()
 	previousValue, ok := p.ikeSA.previousValues[name]
+	// store the value for future reference when this call finishes
+	p.ikeSA.previousValues[name] = f
 	if ok && previousValue > f {
 		return previousValue, true
 	}
@@ -351,11 +349,9 @@ func (p *PrometheusReporter) minValue(name, value string) (float64, bool) {
 		p.logger.Errorf("metrics: failed to convert %s '%s' to float64: %v", name, value, err)
 		return 0, false
 	}
-	// store the value for future reference when this call finishes
-	defer func() {
-		p.ikeSA.previousValues[name] = f
-	}()
 	previousValue, ok := p.ikeSA.previousValues[name]
+	// store the value for future reference when this call finishes
+	p.ikeSA.previousValues[name] = f
 	if ok && previousValue < f {
 		return previousValue, true
 	}
