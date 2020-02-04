@@ -117,14 +117,7 @@ type ChildSAConf struct {
 }
 
 func (c *ClientConn) LoadConn(conn *map[string]IKEConf) error {
-	requestMap := &map[string]interface{}{}
-
-	err := convertToGeneral(conn, requestMap)
-	if err != nil {
-		return fmt.Errorf("convert to general: %w", err)
-	}
-
-	msg, err := c.Request("load-conn", *requestMap)
+	msg, err := c.Request("load-conn", conn)
 	if err != nil {
 		return fmt.Errorf("request: %w", err)
 	}

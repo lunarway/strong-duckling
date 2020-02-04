@@ -45,18 +45,10 @@ func (c *ClientConn) LoadRSAPrivateKey(key *rsa.PrivateKey) error {
 // loadPrivateKey expects typ to be (RSA|ECDSA) and a PEM encoded data as a
 // string
 func (c *ClientConn) loadPrivateKey(typ, data string) error {
-	requestMap := &map[string]interface{}{}
-
-	k := keyPayload{
+	msg, err := c.Request("load-key", keyPayload{
 		Typ:  typ,
 		Data: data,
-	}
-	err := convertToGeneral(k, requestMap)
-	if err != nil {
-		return fmt.Errorf("convert to general: %w", err)
-	}
-
-	msg, err := c.Request("load-key", *requestMap)
+	})
 	if err != nil {
 		return fmt.Errorf("request: %w", err)
 	}

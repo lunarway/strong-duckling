@@ -11,19 +11,11 @@ type certPayload struct {
 }
 
 func (c *ClientConn) LoadCertificate(s string, typ string, flag string) error {
-	requestMap := &map[string]interface{}{}
-
-	var k = certPayload{
+	msg, err := c.Request("load-cert", certPayload{
 		Typ:  typ,
 		Flag: flag,
 		Data: s,
-	}
-	err := convertToGeneral(k, requestMap)
-	if err != nil {
-		return fmt.Errorf("error creating request: %w", err)
-	}
-
-	msg, err := c.Request("load-cert", *requestMap)
+	})
 	if err != nil {
 		return fmt.Errorf("unsuccessful loadCert: %w", err)
 	}

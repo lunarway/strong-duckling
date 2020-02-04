@@ -17,12 +17,7 @@ type TerminateRequest struct {
 // To be simple, kill a client that is connecting to this server. A client is a sa.
 //Terminates an SA while streaming control-log events.
 func (c *ClientConn) Terminate(r *TerminateRequest) error {
-	reqMap := &map[string]interface{}{}
-	err := convertToGeneral(r, reqMap)
-	if err != nil {
-		return err
-	}
-	msg, err := c.Request("terminate", *reqMap)
+	msg, err := c.Request("terminate", r)
 	if err != nil {
 		return err
 	}

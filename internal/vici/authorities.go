@@ -9,25 +9,18 @@ type Authorities struct {
 }
 
 type AuthorityMapping struct {
-	Cacert      string   `json:"cacert,omitempty"`
+	CACert      string   `json:"cacert,omitempty"`
 	File        string   `json:"file,omitempty"`
 	Handle      string   `json:"handle,omitempty"`
 	Slot        string   `json:"slot,omitempty"`
 	Module      string   `json:"module,omitempty"`
-	CertUriBase string   `json:"cert_uri_base,omitempty"`
-	CrlUris     []string `json:"crl_uris,omitempty"`
-	OcspUris    []string `json:"ocsp_uris,omitempty"`
+	CertURIBase string   `json:"cert_uri_base,omitempty"`
+	CRLURIs     []string `json:"crl_uris,omitempty"`
+	OCSPURIs    []string `json:"ocsp_uris,omitempty"`
 }
 
 func (c *ClientConn) LoadAuthority(auth Authorities) error {
-	requestMap := map[string]interface{}{}
-
-	err := convertToGeneral(auth.AuthorityMapping, &requestMap)
-	if err != nil {
-		return fmt.Errorf("error creating request: %v", err)
-	}
-
-	msg, err := c.Request("load-authority", requestMap)
+	msg, err := c.Request("load-authority", auth.AuthorityMapping)
 	if err != nil {
 		return err
 	}
@@ -43,12 +36,7 @@ type UnloadAuthorityRequest struct {
 }
 
 func (c *ClientConn) UnloadAuthority(r *UnloadAuthorityRequest) error {
-	reqMap := &map[string]interface{}{}
-	err := convertToGeneral(r, reqMap)
-	if err != nil {
-		return err
-	}
-	msg, err := c.Request("unload-authority", *reqMap)
+	msg, err := c.Request("unload-authority", r)
 	if err != nil {
 		return err
 	}

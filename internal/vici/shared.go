@@ -23,13 +23,7 @@ type keyList struct {
 
 // load a shared secret into the IKE daemon
 func (c *ClientConn) LoadShared(key *Key) error {
-	requestMap := &map[string]interface{}{}
-	err := convertToGeneral(key, requestMap)
-	if err != nil {
-		return fmt.Errorf("error creating request: %v", err)
-	}
-
-	msg, err := c.Request("load-shared", *requestMap)
+	msg, err := c.Request("load-shared", key)
 	if err != nil {
 		return err
 	}
@@ -42,13 +36,7 @@ func (c *ClientConn) LoadShared(key *Key) error {
 
 // unload (delete) a shared secret from the IKE daemon
 func (c *ClientConn) UnloadShared(key *UnloadKeyRequest) error {
-	requestMap := &map[string]interface{}{}
-	err := convertToGeneral(key, requestMap)
-	if err != nil {
-		return fmt.Errorf("error creating request: %v", err)
-	}
-
-	msg, err := c.Request("unload-shared", *requestMap)
+	msg, err := c.Request("unload-shared", key)
 	if err != nil {
 		return err
 	}

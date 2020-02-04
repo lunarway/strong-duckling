@@ -17,13 +17,7 @@ type PoolMapping struct {
 }
 
 func (c *ClientConn) LoadPool(ph Pool) error {
-	requestMap := map[string]interface{}{}
-	err := convertToGeneral(ph.PoolMapping, &requestMap)
-	if err != nil {
-		return fmt.Errorf("error creating request: %w", err)
-	}
-
-	msg, err := c.Request("load-pool", requestMap)
+	msg, err := c.Request("load-pool", ph.PoolMapping)
 	if err != nil {
 		return err
 	}
@@ -39,12 +33,7 @@ type UnloadPoolRequest struct {
 }
 
 func (c *ClientConn) UnloadPool(r *UnloadPoolRequest) error {
-	reqMap := &map[string]interface{}{}
-	err := convertToGeneral(r, reqMap)
-	if err != nil {
-		return err
-	}
-	msg, err := c.Request("unload-pool", *reqMap)
+	msg, err := c.Request("unload-pool", r)
 	if err != nil {
 		return err
 	}

@@ -50,7 +50,14 @@ func NewClientConnFromDefaultSocket() (*ClientConn, error) {
 	return NewClientConn(conn), nil
 }
 
-func (c *ClientConn) Request(apiname string, request map[string]interface{}) (map[string]interface{}, error) {
+func (c *ClientConn) Request(apiname string, concretePayload interface{}) (map[string]interface{}, error) {
+	var request map[string]interface{}
+	if concretePayload != nil {
+		err := convertToGeneral(concretePayload, request)
+		if err != nil {
+			return nil, fmt.Errorf("convert to general payload: %w", err)
+		}
+	}
 	err := writeSegment(c.conn, segment{
 		typ:  stCMD_REQUEST,
 		name: apiname,
