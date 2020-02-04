@@ -27,7 +27,6 @@ const (
 
 // metric label consts
 const (
-	strongswanVersion     = "strongswan_version"
 	strongDucklingVersion = "version"
 	childSAName           = "child_sa_name"
 )
