@@ -11,7 +11,7 @@ archive:
     darwin: darwin
     linux: linux
     windows: windows
-    386: i386
+    "386": i386
 
 checksum:
   name_template: "{{ .ProjectName }}-checksums.txt"
