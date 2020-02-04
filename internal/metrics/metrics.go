@@ -83,7 +83,7 @@ func NewPrometheusReporter(reg prometheus.Registerer, logger Logger) (*Prometheu
 			Namespace: namespace,
 			Name:      "info",
 			Help:      "Version info of strong_duckling",
-		}, []string{strongswanVersion, strongDucklingVersion}),
+		}, []string{strongDucklingVersion}),
 		tcpChecker: &tcpChecker{
 			open: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 				Namespace: namespace,
@@ -238,6 +238,10 @@ func (r *tcpChecker) ReportPortCheck(report tcpchecker.Report) {
 }
 
 func (p *PrometheusReporter) IKESAStatus(conn vici.IKEConf, sa *vici.IkeSa) {
+	if sa == nil {
+		p.logger.Errorf("No SA for connecetion configuration: %#v", conn)
+		return
+	}
 	p.setGaugeByMax(p.ikeSA.establishedSeconds, sa.EstablishedSeconds, "EstablishedSeconds")
 	p.logger.Infof("prometheusReporter: IKESAStatus: IKE_SA state: %v", sa.State)
 	for name, child := range sa.ChildSAs {
