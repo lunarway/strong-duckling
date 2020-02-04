@@ -33,6 +33,7 @@ const (
 )
 
 type Logger interface {
+	Infof(string, ...interface{})
 	Errorf(string, ...interface{})
 }
 
@@ -238,7 +239,9 @@ func (r *tcpChecker) ReportPortCheck(report tcpchecker.Report) {
 
 func (p *PrometheusReporter) IKESAStatus(conn vici.IKEConf, sa *vici.IkeSa) {
 	p.setGaugeByMax(p.ikeSA.establishedSeconds, sa.EstablishedSeconds, "EstablishedSeconds")
+	p.logger.Infof("prometheusReporter: IKESAStatus: IKE_SA state: %v", sa.State)
 	for name, child := range sa.ChildSAs {
+		p.logger.Infof("prometheusReporter: IKESAStatus: IKE_SA child state: %v", child.State)
 		p.setCounterByMax(p.ikeSA.installs, child.InstallTimeSeconds, "InstallTimeSeconds")
 		p.setGauge(p.ikeSA.packetsIn, child.PacketsIn, "PacketsIn", name)
 		p.setGauge(p.ikeSA.packetsOut, child.PacketsOut, "PacketsOut", name)
