@@ -119,11 +119,10 @@ type ChildSAConf struct {
 func (c *ClientConn) LoadConn(conn *map[string]IKEConf) error {
 	msg, err := c.Request("load-conn", conn)
 	if err != nil {
-		return fmt.Errorf("request: %w", err)
+		return err
 	}
 	if msg["success"] != "yes" {
-		return fmt.Errorf("unsuccessful LoadConn: %v", msg["errmsg"])
+		return fmt.Errorf("load-conn unsuccessful: %v", msg["errmsg"])
 	}
-
 	return nil
 }

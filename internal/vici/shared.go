@@ -28,9 +28,8 @@ func (c *ClientConn) LoadShared(key *Key) error {
 		return err
 	}
 	if msg["success"] != "yes" {
-		return fmt.Errorf("unsuccessful loadSharedKey: %v", msg["errmsg"])
+		return fmt.Errorf("load-shared unsuccessful: %v", msg["errmsg"])
 	}
-
 	return nil
 }
 
@@ -41,9 +40,8 @@ func (c *ClientConn) UnloadShared(key *UnloadKeyRequest) error {
 		return err
 	}
 	if msg["success"] != "yes" {
-		return fmt.Errorf("unsuccessful loadSharedKey: %v", msg["errmsg"])
+		return fmt.Errorf("unload-shared unsuccessful: %v", msg["errmsg"])
 	}
-
 	return nil
 }
 
@@ -51,15 +49,12 @@ func (c *ClientConn) UnloadShared(key *UnloadKeyRequest) error {
 func (c *ClientConn) GetShared() ([]string, error) {
 	msg, err := c.Request("get-shared", nil)
 	if err != nil {
-		return nil, fmt.Errorf("get-shared request: %w", err)
+		return nil, err
 	}
-
-	keys := &keyList{}
-
-	err = convertFromGeneral(msg, keys)
+	var keys keyList
+	err = convertFromGeneral(msg, &keys)
 	if err != nil {
-		return nil, fmt.Errorf("convert msg: %w", err)
+		return nil, fmt.Errorf("convert response: %w", err)
 	}
-
 	return keys.Keys, nil
 }

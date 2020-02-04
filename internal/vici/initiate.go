@@ -7,19 +7,19 @@ import (
 // Initiate is used to initiate an SA. This is the
 // equivalent of `swanctl --initiate -c childname`
 func (c *ClientConn) Initiate(child string, ike string) (err error) {
-	inMap := map[string]interface{}{}
+	request := map[string]interface{}{}
 	if child != "" {
-		inMap["child"] = child
+		request["child"] = child
 	}
 	if ike != "" {
-		inMap["ike"] = ike
+		request["ike"] = ike
 	}
-	msg, err := c.Request("initiate", inMap)
+	msg, err := c.Request("initiate", request)
 	if err != nil {
 		return err
 	}
 	if msg["success"] != "yes" {
-		return fmt.Errorf("unsuccessful Initiate: %v", msg["errmsg"])
+		return fmt.Errorf("initiate unsuccessful: %v", msg["errmsg"])
 	}
 	return nil
 }

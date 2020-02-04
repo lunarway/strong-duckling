@@ -25,9 +25,8 @@ func (c *ClientConn) LoadAuthority(auth Authorities) error {
 		return err
 	}
 	if msg["success"] != "yes" {
-		return fmt.Errorf("unsuccessful LoadAuthority: %v", msg["errmsg"])
+		return fmt.Errorf("load-authority unsuccessful: %v", msg["errmsg"])
 	}
-
 	return nil
 }
 
@@ -40,10 +39,8 @@ func (c *ClientConn) UnloadAuthority(r *UnloadAuthorityRequest) error {
 	if err != nil {
 		return err
 	}
-
 	if msg["success"] != "yes" {
-		return fmt.Errorf("unsuccessful UnloadAuthority %s", msg["errmsg"])
+		return fmt.Errorf("unload-authority unsuccessful: %v", msg["errmsg"])
 	}
-
 	return nil
 }

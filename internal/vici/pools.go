@@ -22,9 +22,8 @@ func (c *ClientConn) LoadPool(ph Pool) error {
 		return err
 	}
 	if msg["success"] != "yes" {
-		return fmt.Errorf("unsuccessful LoadPool: %v", msg["errmsg"])
+		return fmt.Errorf("load-pool unsuccessful: %v", msg["errmsg"])
 	}
-
 	return nil
 }
 
@@ -37,10 +36,8 @@ func (c *ClientConn) UnloadPool(r *UnloadPoolRequest) error {
 	if err != nil {
 		return err
 	}
-
 	if msg["success"] != "yes" {
-		return fmt.Errorf("[Unload-Pool] %s", msg["errmsg"])
+		return fmt.Errorf("unload-pool unsuccessful: %v", msg["errmsg"])
 	}
-
 	return nil
 }

@@ -13,10 +13,8 @@ func (c *ClientConn) UnloadConn(r *UnloadConnRequest) error {
 	if err != nil {
 		return err
 	}
-
 	if msg["success"] != "yes" {
-		return fmt.Errorf("[Unload-Connection] %s", msg["errmsg"])
+		return fmt.Errorf("unload-conn unsuccessful: %v", msg["errmsg"])
 	}
-
 	return nil
 }

@@ -17,12 +17,10 @@ func (c *ClientConn) LoadCertificate(s string, typ string, flag string) error {
 		Data: s,
 	})
 	if err != nil {
-		return fmt.Errorf("unsuccessful loadCert: %w", err)
+		return err
 	}
-
 	if msg["success"] != "yes" {
-		return fmt.Errorf("unsuccessful loadCert: %v", msg["errmsg"])
+		return fmt.Errorf("load-cert unsuccessful: %v", msg["errmsg"])
 	}
-
 	return nil
 }

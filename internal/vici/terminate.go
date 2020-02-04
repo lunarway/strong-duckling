@@ -22,7 +22,7 @@ func (c *ClientConn) Terminate(r *TerminateRequest) error {
 		return err
 	}
 	if msg["success"] != "yes" {
-		return fmt.Errorf("[Terminate] %s", msg["errmsg"])
+		return fmt.Errorf("terminate unsuccessful: %v", msg["errmsg"])
 	}
 	return nil
 }
