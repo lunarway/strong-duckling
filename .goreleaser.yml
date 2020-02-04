@@ -4,14 +4,14 @@ builds:
     ldflags:
       - "-s -w -X main.version={{.Version}}"
 
-archive:
-  format: binary
-  name_template: "{{ .ProjectName }}-{{ .Os }}-{{ .Arch }}"
-  replacements:
-    darwin: darwin
-    linux: linux
-    windows: windows
-    "386": i386
+archives:
+  - format: binary
+    name_template: "{{ .ProjectName }}-{{ .Os }}-{{ .Arch }}"
+    replacements:
+      darwin: darwin
+      linux: linux
+      windows: windows
+      "386": i386
 
 checksum:
   name_template: "{{ .ProjectName }}-checksums.txt"
