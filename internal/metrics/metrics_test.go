@@ -177,13 +177,8 @@ strong_duckling_ike_sa_rekey_seconds_count 2
 					},
 				})
 			}
-			// if !tc.rekeySet {
-			// this validates that no metrics are collected on the registry
 			err = testutil.GatherAndCompare(reg, strings.NewReader(tc.histogram), "strong_duckling_ike_sa_rekey_seconds")
 			assert.NoError(t, err, "unexpected error from gathering metrics")
-			// 	return
-			// }
-			// assert.Equal(t, tc.rekeyDuration, testutil.ToFloat64(p.ikeSA.rekeySeconds), "rekey not as expected")
 		})
 	}
 }
