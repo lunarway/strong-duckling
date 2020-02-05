@@ -28,6 +28,10 @@ var (
 )
 
 func main() {
+	var exitCode int
+	defer func() {
+		os.Exit(exitCode)
+	}()
 	flags := kingpin.New("strong-duckling", "A small sidekick to strongswan VPN")
 	listenAddress := flags.Flag("listen", "Address on which to expose metrics.").String()
 	whoopingAddress := flags.Flag("whooping", "Address on which to start whooping.").String()
@@ -176,6 +180,7 @@ func main() {
 	shutdownWg.Wait()
 	if reason != nil {
 		log.Errorf("exited due to error: %v", reason)
+		exitCode = 1
 	} else {
 		log.Info("exited due to a component shutting down")
 	}
