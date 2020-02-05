@@ -25,7 +25,7 @@ func (whooper *Whooper) RegisterListener(serveMux *http.ServeMux, listeningAddre
 		err := json.NewDecoder(r.Body).Decode(&whoop)
 
 		if err != nil {
-			log.Debugf("Got error trying to parse whoop: %v", err)
+			log.Debugf("Got error trying to parse whoop: %+v", err)
 			http.Error(w, "can't read body", http.StatusBadRequest)
 			return
 		}

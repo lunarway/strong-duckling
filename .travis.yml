@@ -6,7 +6,7 @@ go:
 script: |
   echo "Build strong-duckling" &&
   go build &&
-  go test
+  go test ./...
 
 services:
   - docker
