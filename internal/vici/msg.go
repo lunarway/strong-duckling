@@ -13,13 +13,13 @@ type segmentType byte
 
 const (
 	stCMD_REQUEST      segmentType = 0
-	stCMD_RESPONSE                 = 1
-	stCMD_UNKNOWN                  = 2
-	stEVENT_REGISTER               = 3
-	stEVENT_UNREGISTER             = 4
-	stEVENT_CONFIRM                = 5
-	stEVENT_UNKNOWN                = 6
-	stEVENT                        = 7
+	stCMD_RESPONSE     segmentType = 1
+	stCMD_UNKNOWN      segmentType = 2
+	stEVENT_REGISTER   segmentType = 3
+	stEVENT_UNREGISTER segmentType = 4
+	stEVENT_CONFIRM    segmentType = 5
+	stEVENT_UNKNOWN    segmentType = 6
+	stEVENT            segmentType = 7
 )
 
 func (t segmentType) hasName() bool {
@@ -50,11 +50,11 @@ type elementType byte
 
 const (
 	etSECTION_START elementType = 1
-	etSECTION_END               = 2
-	etKEY_VALUE                 = 3
-	etLIST_START                = 4
-	etLIST_ITEM                 = 5
-	etLIST_END                  = 6
+	etSECTION_END   elementType = 2
+	etKEY_VALUE     elementType = 3
+	etLIST_START    elementType = 4
+	etLIST_ITEM     elementType = 5
+	etLIST_END      elementType = 6
 )
 
 type segment struct {
