@@ -164,10 +164,8 @@ func main() {
 		}()
 	}
 
-	err = runningVersion(version, prometheusReporter)
-	if err != nil {
-		componentDone <- fmt.Errorf("failed to expose version info as metrics: %v", err)
-	}
+	log.Infof("Strong duckling version %s", version)
+	prometheusReporter.Info(version)
 
 	// this is blocking until some component fails of a signal is received
 	reason := <-componentDone
@@ -181,10 +179,4 @@ func main() {
 	} else {
 		log.Info("exited due to a component shutting down")
 	}
-}
-
-func runningVersion(version string, reporter *metrics.PrometheusReporter) error {
-	log.Infof("Strong duckling version %s", version)
-	reporter.Info(version)
-	return nil
 }
