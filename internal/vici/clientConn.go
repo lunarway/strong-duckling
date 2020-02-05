@@ -91,7 +91,7 @@ func (c *ClientConn) readResponse() segment {
 
 func (c *ClientConn) RegisterEvent(name string, handler func(response map[string]interface{})) error {
 	if c.eventHandlers[name] != nil {
-		return fmt.Errorf("[event %s] register an event twice.", name)
+		return fmt.Errorf("only one registration per name possible")
 	}
 	c.eventHandlers[name] = handler
 	err := writeSegment(c.conn, segment{
