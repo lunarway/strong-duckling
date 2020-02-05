@@ -8,11 +8,6 @@ import (
 	"fmt"
 )
 
-type keyPayload struct {
-	Typ  string `json:"type"`
-	Data string `json:"data"`
-}
-
 // LoadECDSAPrivateKey encodes a *ecdsa.PrivateKey as a PEM block before sending
 // it to the Vici interface
 func (c *ClientConn) LoadECDSAPrivateKey(key *ecdsa.PrivateKey) error {
@@ -42,11 +37,16 @@ func (c *ClientConn) LoadRSAPrivateKey(key *rsa.PrivateKey) error {
 	return c.loadPrivateKey("RSA", string(pemData))
 }
 
+type keyPayload struct {
+	Type string `json:"type"`
+	Data string `json:"data"`
+}
+
 // loadPrivateKey expects typ to be (RSA|ECDSA) and a PEM encoded data as a
 // string
 func (c *ClientConn) loadPrivateKey(typ, data string) error {
 	msg, err := c.Request("load-key", keyPayload{
-		Typ:  typ,
+		Type: typ,
 		Data: data,
 	})
 	if err != nil {
