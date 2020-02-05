@@ -2,7 +2,7 @@
 
 [![Build Status](https://travis-ci.com/lunarway/release-manager.svg?branch=master)](https://travis-ci.com/lunarway/strong-duckling)
 [![Go Report Card](https://goreportcard.com/badge/github.com/lunarway/release-manager)](https://goreportcard.com/report/github.com/lunarway/strong-duckling)
-[![GolangCI](https://raw.githubusercontent.com/golangci/golangci-web/master/src/assets/images/badge_a_plus_flat.svg)](https://golangci.com/r/github.com/lunarway/strong-duckling)
+[![GolangCI](https://golangci.com/badges/github.com/lunarway/strong-duckling.svg)](https://golangci.com/r/github.com/lunarway/strong-duckling)
 
 Strongswan sidecar and VPN tooling
 
