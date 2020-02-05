@@ -265,7 +265,6 @@ func (p *PrometheusReporter) setRekeySeconds(conn vici.IKEConf, child vici.Child
 	// done by finding a min value on the child field and subtracting that from
 	// the max value on the conf.
 	minRekeyTimeSeconds, ok := p.minValue("RekeyTimeSeconds", child.RekeyTimeSeconds)
-	p.logger.Errorf("Deteceted min rekey: %v %v", ok, minRekeyTimeSeconds)
 	if !ok {
 		return
 	}
