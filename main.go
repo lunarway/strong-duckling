@@ -115,7 +115,6 @@ func main() {
 		go func() {
 			defer shutdownWg.Done()
 			tcpCheckerDaemon.Loop(shutdown)
-			log.Infof("tcp checker daemon stopped. Terminating...")
 			componentDone <- nil
 		}()
 	}
@@ -123,9 +122,7 @@ func main() {
 	if *listenAddress != "" {
 		go func() {
 			// no shutdown mechanism in place for the HTTP server
-			err := http.Start(httpServer, *listenAddress)
-			log.Infof("http server stopped. Terminating...")
-			componentDone <- err
+			componentDone <- http.Start(httpServer, *listenAddress)
 		}()
 	}
 
