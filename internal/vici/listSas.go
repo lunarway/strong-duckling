@@ -173,8 +173,7 @@ func (c *ClientConn) ListSas(ike string, ike_id string) ([]map[string]IkeSa, err
 
 //a vpn conn in the strongswan server
 type VpnConnInfo struct {
-	IkeSa IkeSa
-	// FIXME: This looks wrong. JSON keys between IkeSa and ChildSAs are conflicting.
+	IkeSa       IkeSa
 	ChildSA     ChildSA
 	IkeSaName   string //looks like conn name in ipsec.conf, content is same as ChildSaName
 	ChildSaName string //looks like conn name in ipsec.conf
