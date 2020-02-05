@@ -112,7 +112,7 @@ type ChildSAConf struct {
 	MarkOut                string   `json:"mark_out,omitempty"`
 	DpdAction              string   `json:"dpd_action,omitempty"`
 	LifeTime               string   `json:"life_time,omitempty"`
-	RekeyBytes             string   `json:"rekey_by´tes,omitempty"`
+	RekeyBytes             string   `json:"rekey_bytes,omitempty"`
 	RekeyPackets           string   `json:"rekey_packets,omitempty"`
 }
 
