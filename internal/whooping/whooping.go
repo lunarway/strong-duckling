@@ -44,6 +44,8 @@ func (whooper *Whooper) RegisterListener(serveMux *http.ServeMux, listeningAddre
 			})
 			if err != nil {
 				log.Errorf("Failed to marshal whopp: %+v", err)
+				http.Error(w, "unknown error", http.StatusInternalServerError)
+				return
 			}
 		} else {
 			log.Debugf("Got error trying to answer whoop message: %s", whoop.Message)
