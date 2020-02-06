@@ -7,12 +7,10 @@ import (
 	"time"
 
 	"github.com/lunarway/strong-duckling/internal/daemon"
-	"github.com/lunarway/strong-duckling/internal/test"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestDaemon_Loop(t *testing.T) {
-	logger := test.NewLogger(t)
 	tickInterval := 10 * time.Millisecond
 	testDuration := 100 * time.Millisecond
 	expectedTickCount := int32(10)
@@ -20,7 +18,20 @@ func TestDaemon_Loop(t *testing.T) {
 	var actualTickCount int32
 	d := daemon.New(daemon.Configuration{
 		Interval: tickInterval,
-		Logger:   logger,
+		Reporter: &daemon.Reporter{
+			Started: func(time.Duration) {
+				t.Log("Daemon started")
+			},
+			Stopped: func() {
+				t.Log("Daemon stopped")
+			},
+			Skipped: func() {
+				t.Log("Daemon skipped")
+			},
+			Ticked: func() {
+				t.Log("Daemon ticked")
+			},
+		},
 		Tick: func() {
 			atomic.AddInt32(&actualTickCount, 1)
 		},

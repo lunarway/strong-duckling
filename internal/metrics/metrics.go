@@ -24,6 +24,7 @@ const (
 	namespace           = "strong_duckling"
 	subSystemTcpChecker = "tcp_checker"
 	subSystemIKE        = "ike_sa"
+	subSystemDaemon     = "daemon"
 )
 
 type Logger interface {
@@ -38,6 +39,7 @@ type PrometheusReporter struct {
 	version    *prometheus.GaugeVec
 	tcpChecker *tcpChecker
 	ikeSA      ikeSA
+	Daemon     *Daemon
 }
 
 func (pr *PrometheusReporter) TcpChecker() tcpchecker.Reporter {
@@ -92,6 +94,13 @@ func (c childSALabels) names() []string {
 
 func (c childSALabels) values() []string {
 	return append(c.ikeSALabels.values(), c.localIPRange, c.remoteIPRange, c.childSAName)
+}
+
+type Daemon struct {
+	Started *prometheus.CounterVec
+	Stopped *prometheus.CounterVec
+	Ticked  *prometheus.CounterVec
+	Skipped *prometheus.CounterVec
 }
 
 func NewPrometheusReporter(reg prometheus.Registerer, logger Logger) (*PrometheusReporter, error) {
@@ -202,6 +211,32 @@ func NewPrometheusReporter(reg prometheus.Registerer, logger Logger) (*Prometheu
 				Help:      "Current state of the child SA",
 			}, childSALabels{}.names()),
 		},
+		Daemon: &Daemon{
+			Started: prometheus.NewCounterVec(prometheus.CounterOpts{
+				Namespace: namespace,
+				Subsystem: subSystemDaemon,
+				Name:      "starts_total",
+				Help:      "Total number of times started",
+			}, []string{"name", "interval"}),
+			Stopped: prometheus.NewCounterVec(prometheus.CounterOpts{
+				Namespace: namespace,
+				Subsystem: subSystemDaemon,
+				Name:      "stops_total",
+				Help:      "Total number of times stopped",
+			}, []string{"name"}),
+			Skipped: prometheus.NewCounterVec(prometheus.CounterOpts{
+				Namespace: namespace,
+				Subsystem: subSystemDaemon,
+				Name:      "skips_total",
+				Help:      "Total number of times tick was skipped",
+			}, []string{"name"}),
+			Ticked: prometheus.NewCounterVec(prometheus.CounterOpts{
+				Namespace: namespace,
+				Subsystem: subSystemDaemon,
+				Name:      "ticks_total",
+				Help:      "Total number of times tick was invoked",
+			}, []string{"name"}),
+		},
 	}
 
 	err := register(r.registry,
@@ -221,6 +256,10 @@ func NewPrometheusReporter(reg prometheus.Registerer, logger Logger) (*Prometheu
 		r.ikeSA.lifeTimeSeconds,
 		r.ikeSA.state,
 		r.ikeSA.childSAState,
+		r.Daemon.Started,
+		r.Daemon.Stopped,
+		r.Daemon.Skipped,
+		r.Daemon.Ticked,
 	)
 	if err != nil {
 		return nil, err
