@@ -33,7 +33,7 @@ func (r *logReporter) ReportPortCheck(report Report) {
 			Infof("TCP connection to %s opened", report.Name)
 	case !report.Open && !r.lastOpen:
 		// Port still closed
-		if time.Now().Sub(r.lastReport) > 5*time.Minute {
+		if time.Since(r.lastReport) > 5*time.Minute {
 			r.lastReport = time.Now()
 			r.lastOpen = report.Open
 			r.Logger.
