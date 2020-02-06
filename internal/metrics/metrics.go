@@ -128,14 +128,14 @@ func NewPrometheusReporter(reg prometheus.Registerer, logger Logger) (*Prometheu
 				Subsystem: subSystemIKE,
 				Name:      "packets_in_silence_duration_seconds",
 				Help:      "Duration of silences between packets in",
-				Buckets:   prometheus.ExponentialBuckets(0.1, 10, 10),
+				Buckets:   prometheus.ExponentialBuckets(15, 2, 14),
 			}, []string{}),
 			lastPacketOutSeconds: prometheus.NewHistogramVec(prometheus.HistogramOpts{
 				Namespace: namespace,
 				Subsystem: subSystemIKE,
 				Name:      "packets_out_silence_duration_seconds",
 				Help:      "Duration of silences between packets out",
-				Buckets:   prometheus.ExponentialBuckets(0.1, 10, 10),
+				Buckets:   prometheus.ExponentialBuckets(15, 2, 14),
 			}, []string{}),
 			bytesIn: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 				Namespace: namespace,
@@ -160,14 +160,14 @@ func NewPrometheusReporter(reg prometheus.Registerer, logger Logger) (*Prometheu
 				Subsystem: subSystemIKE,
 				Name:      "rekey_seconds",
 				Help:      "Duration between re-keying",
-				Buckets:   []float64{10, 30, 60, 120, 300, 480, 600},
+				Buckets:   prometheus.ExponentialBuckets(15, 2, 12),
 			}, []string{}),
 			lifeTimeSeconds: prometheus.NewHistogramVec(prometheus.HistogramOpts{
 				Namespace: namespace,
 				Subsystem: subSystemIKE,
 				Name:      "lifetime_seconds",
 				Help:      "Duration of each IKE session",
-				Buckets:   prometheus.ExponentialBuckets(0.1, 10800, 10), // 3 hours
+				Buckets:   prometheus.ExponentialBuckets(15, 2, 14),
 			}, []string{}),
 			state: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 				Namespace: namespace,
@@ -315,11 +315,11 @@ func (p *PrometheusReporter) setHistogramByMax(h *prometheus.HistogramVec, value
 }
 
 func (p *PrometheusReporter) setHistogramByMin(h *prometheus.HistogramVec, value, name string) {
-	max, ok := p.minValue(name, value)
+	min, ok := p.minValue(name, value)
 	if !ok {
 		return
 	}
-	h.WithLabelValues().Observe(max)
+	h.WithLabelValues().Observe(min)
 }
 
 // maxValue detects the max value of value. If max is detected the returned
