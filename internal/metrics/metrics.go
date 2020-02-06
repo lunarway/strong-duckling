@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/lunarway/strong-duckling/internal/tcpchecker"
 	"github.com/lunarway/strong-duckling/internal/vici"
@@ -23,12 +24,6 @@ const (
 	namespace           = "strong_duckling"
 	subSystemTcpChecker = "tcp_checker"
 	subSystemIKE        = "ike_sa"
-)
-
-// metric label consts
-const (
-	strongDucklingVersion = "version"
-	childSAName           = "child_sa_name"
 )
 
 type Logger interface {
@@ -74,6 +69,31 @@ type ikeSA struct {
 	childSAState         *prometheus.GaugeVec
 }
 
+type ikeSALabels struct {
+	name, localPeerIP, remotePeerIP string
+}
+
+func (i ikeSALabels) names() []string {
+	return []string{"ike_sa_name", "local_peer_ip", "remote_peer_ip"}
+}
+
+func (i ikeSALabels) values() []string {
+	return []string{i.name, i.localPeerIP, i.remotePeerIP}
+}
+
+type childSALabels struct {
+	ikeSALabels
+	localIPRange, remoteIPRange, childSAName string
+}
+
+func (c childSALabels) names() []string {
+	return append(c.ikeSALabels.names(), "local_ip_range", "remote_ip_range", "child_sa_name")
+}
+
+func (c childSALabels) values() []string {
+	return append(c.ikeSALabels.values(), c.localIPRange, c.remoteIPRange, c.childSAName)
+}
+
 func NewPrometheusReporter(reg prometheus.Registerer, logger Logger) (*PrometheusReporter, error) {
 	r := PrometheusReporter{
 		registry: reg,
@@ -82,7 +102,7 @@ func NewPrometheusReporter(reg prometheus.Registerer, logger Logger) (*Prometheu
 			Namespace: namespace,
 			Name:      "info",
 			Help:      "Version info of strong_duckling",
-		}, []string{strongDucklingVersion}),
+		}, []string{"version"}),
 		tcpChecker: &tcpChecker{
 			open: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 				Namespace: namespace,
@@ -110,77 +130,77 @@ func NewPrometheusReporter(reg prometheus.Registerer, logger Logger) (*Prometheu
 				Subsystem: subSystemIKE,
 				Name:      "established_seconds",
 				Help:      "Number of seconds the SA has been established",
-			}, []string{}),
+			}, ikeSALabels{}.names()),
 			packetsIn: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 				Namespace: namespace,
 				Subsystem: subSystemIKE,
 				Name:      "packets_in_total",
 				Help:      "Total number of received packets",
-			}, []string{childSAName}),
+			}, childSALabels{}.names()),
 			packetsOut: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 				Namespace: namespace,
 				Subsystem: subSystemIKE,
 				Name:      "packets_out_total",
 				Help:      "Total number of transmitted packets",
-			}, []string{childSAName}),
+			}, childSALabels{}.names()),
 			lastPacketInSeconds: prometheus.NewHistogramVec(prometheus.HistogramOpts{
 				Namespace: namespace,
 				Subsystem: subSystemIKE,
 				Name:      "packets_in_silence_duration_seconds",
 				Help:      "Duration of silences between packets in",
 				Buckets:   prometheus.ExponentialBuckets(15, 2, 14),
-			}, []string{}),
+			}, childSALabels{}.names()),
 			lastPacketOutSeconds: prometheus.NewHistogramVec(prometheus.HistogramOpts{
 				Namespace: namespace,
 				Subsystem: subSystemIKE,
 				Name:      "packets_out_silence_duration_seconds",
 				Help:      "Duration of silences between packets out",
 				Buckets:   prometheus.ExponentialBuckets(15, 2, 14),
-			}, []string{}),
+			}, childSALabels{}.names()),
 			bytesIn: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 				Namespace: namespace,
 				Subsystem: subSystemIKE,
 				Name:      "bytes_in_total",
 				Help:      "Total number of received bytes",
-			}, []string{childSAName}),
+			}, childSALabels{}.names()),
 			bytesOut: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 				Namespace: namespace,
 				Subsystem: subSystemIKE,
 				Name:      "bytes_out_total",
 				Help:      "Total number of transmitted bytes",
-			}, []string{childSAName}),
+			}, childSALabels{}.names()),
 			installs: prometheus.NewCounterVec(prometheus.CounterOpts{
 				Namespace: namespace,
 				Subsystem: subSystemIKE,
 				Name:      "installs_total",
 				Help:      "Total number of SA installs",
-			}, []string{}),
+			}, childSALabels{}.names()),
 			rekeySeconds: prometheus.NewHistogramVec(prometheus.HistogramOpts{
 				Namespace: namespace,
 				Subsystem: subSystemIKE,
 				Name:      "rekey_seconds",
 				Help:      "Duration between re-keying",
 				Buckets:   prometheus.ExponentialBuckets(15, 2, 12),
-			}, []string{}),
+			}, childSALabels{}.names()),
 			lifeTimeSeconds: prometheus.NewHistogramVec(prometheus.HistogramOpts{
 				Namespace: namespace,
 				Subsystem: subSystemIKE,
 				Name:      "lifetime_seconds",
 				Help:      "Duration of each IKE session",
 				Buckets:   prometheus.ExponentialBuckets(15, 2, 14),
-			}, []string{}),
+			}, childSALabels{}.names()),
 			state: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 				Namespace: namespace,
 				Subsystem: subSystemIKE,
 				Name:      "state_info",
 				Help:      "Current state of the SA",
-			}, []string{}),
+			}, ikeSALabels{}.names()),
 			childSAState: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 				Namespace: namespace,
 				Subsystem: subSystemIKE,
 				Name:      "child_state_info",
 				Help:      "Current state of the child SA",
-			}, []string{}),
+			}, childSALabels{}.names()),
 		},
 	}
 
@@ -236,29 +256,40 @@ func (r *tcpChecker) ReportPortCheck(report tcpchecker.Report) {
 	r.previousOpenState = &report.Open
 }
 
-func (p *PrometheusReporter) IKESAStatus(conn vici.IKEConf, sa *vici.IkeSa) {
+func (p *PrometheusReporter) IKESAStatus(ikeName string, conn vici.IKEConf, sa *vici.IkeSa) {
 	if sa == nil {
 		p.logger.Errorf("No SA for connecetion configuration: %#v", conn)
 		return
 	}
-	p.setGaugeByMax(p.ikeSA.establishedSeconds, sa.EstablishedSeconds, "EstablishedSeconds")
+	ikeSALabels := ikeSALabels{
+		name:         ikeName,
+		localPeerIP:  sa.LocalHost,
+		remotePeerIP: sa.RemoteHost,
+	}
+	p.setGaugeByMax(p.ikeSA.establishedSeconds, sa.EstablishedSeconds, "EstablishedSeconds", ikeSALabels)
 	p.logger.Infof("prometheusReporter: IKESAStatus: IKE_SA state: %v", sa.State)
-	for name, child := range sa.ChildSAs {
+	for _, child := range sa.ChildSAs {
+		labels := childSALabels{
+			ikeSALabels:   ikeSALabels,
+			childSAName:   child.Name,
+			localIPRange:  strings.Join(child.LocalTrafficSelectors, ","),
+			remoteIPRange: strings.Join(child.RemoteTrafficSelectors, ","),
+		}
 		p.logger.Infof("prometheusReporter: IKESAStatus: IKE_SA child state: %v", child.State)
-		p.setCounterByMax(p.ikeSA.installs, child.InstallTimeSeconds, "InstallTimeSeconds")
-		p.setGauge(p.ikeSA.packetsIn, child.PacketsIn, "PacketsIn", name)
-		p.setGauge(p.ikeSA.packetsOut, child.PacketsOut, "PacketsOut", name)
-		p.setGauge(p.ikeSA.bytesIn, child.BytesIn, "BytesIn", name)
-		p.setGauge(p.ikeSA.bytesOut, child.BytesOut, "BytesOut", name)
-		p.setHistogramByMax(p.ikeSA.lastPacketInSeconds, child.LastPacketInSeconds, "LastPacketInSeconds")
-		p.setHistogramByMax(p.ikeSA.lastPacketOutSeconds, child.LastPacketOutSeconds, "LastPacketOutSeconds")
-		p.setHistogramByMin(p.ikeSA.rekeySeconds, child.RekeyTimeSeconds, "RekeyTimeSeconds")
-		p.setHistogramByMax(p.ikeSA.lifeTimeSeconds, child.LifeTimeSeconds, "LifeTimeSeconds")
-		p.setRekeySeconds(conn, child)
+		p.setCounterByMax(p.ikeSA.installs, child.InstallTimeSeconds, "InstallTimeSeconds", labels)
+		p.setGauge(p.ikeSA.packetsIn, child.PacketsIn, "PacketsIn", labels)
+		p.setGauge(p.ikeSA.packetsOut, child.PacketsOut, "PacketsOut", labels)
+		p.setGauge(p.ikeSA.bytesIn, child.BytesIn, "BytesIn", labels)
+		p.setGauge(p.ikeSA.bytesOut, child.BytesOut, "BytesOut", labels)
+		p.setHistogramByMax(p.ikeSA.lastPacketInSeconds, child.LastPacketInSeconds, "LastPacketInSeconds", labels)
+		p.setHistogramByMax(p.ikeSA.lastPacketOutSeconds, child.LastPacketOutSeconds, "LastPacketOutSeconds", labels)
+		p.setHistogramByMin(p.ikeSA.rekeySeconds, child.RekeyTimeSeconds, "RekeyTimeSeconds", labels)
+		p.setHistogramByMax(p.ikeSA.lifeTimeSeconds, child.LifeTimeSeconds, "LifeTimeSeconds", labels)
+		p.setRekeySeconds(conn, child, labels)
 	}
 }
 
-func (p *PrometheusReporter) setRekeySeconds(conn vici.IKEConf, child vici.ChildSA) {
+func (p *PrometheusReporter) setRekeySeconds(conn vici.IKEConf, child vici.ChildSA, labels childSALabels) {
 	// RekeyTimeSeconds on the conn conf is the start value and on the child the
 	// time left from this value. We want to track how long each rekey session
 	// was, ie. the ellapsed time from max to when it increases again. This is
@@ -273,53 +304,53 @@ func (p *PrometheusReporter) setRekeySeconds(conn vici.IKEConf, child vici.Child
 		p.logger.Errorf("metrics: failed to convert RekeyTimeSeconds '%s' to float64: %v", conn.RekeyTimeSeconds, err)
 		return
 	}
-	p.ikeSA.rekeySeconds.WithLabelValues().Observe(connRekeyTimeSeconds - minRekeyTimeSeconds)
+	p.ikeSA.rekeySeconds.WithLabelValues(labels.values()...).Observe(connRekeyTimeSeconds - minRekeyTimeSeconds)
 }
 
-func (p *PrometheusReporter) setGauge(g *prometheus.GaugeVec, value, name string, lbv ...string) {
+func (p *PrometheusReporter) setGauge(g *prometheus.GaugeVec, value, name string, labels childSALabels) {
 	f, err := strconv.ParseFloat(value, 64)
 	if err != nil {
 		p.logger.Errorf("metrics: failed to convert %s '%s' to float64: %v", name, value, err)
 		return
 	}
-	g.WithLabelValues(lbv...).Set(f)
+	g.WithLabelValues(labels.values()...).Set(f)
 }
 
-func (p *PrometheusReporter) setCounterByMax(c *prometheus.CounterVec, value, name string) {
+func (p *PrometheusReporter) setCounterByMax(c *prometheus.CounterVec, value, name string, labels childSALabels) {
 	// if this is the first time it is called it should be increased as well
 	_, ok := p.ikeSA.previousValues[name]
 	if !ok {
-		c.WithLabelValues().Inc()
+		c.WithLabelValues(labels.values()...).Inc()
 	}
 	_, ok = p.maxValue(name, value)
 	if !ok {
 		return
 	}
-	c.WithLabelValues().Inc()
+	c.WithLabelValues(labels.values()...).Inc()
 }
 
-func (p *PrometheusReporter) setGaugeByMax(g *prometheus.GaugeVec, value, name string) {
+func (p *PrometheusReporter) setGaugeByMax(g *prometheus.GaugeVec, value, name string, labels ikeSALabels) {
 	max, ok := p.maxValue(name, value)
 	if !ok {
 		return
 	}
-	g.WithLabelValues().Set(max)
+	g.WithLabelValues(labels.values()...).Set(max)
 }
 
-func (p *PrometheusReporter) setHistogramByMax(h *prometheus.HistogramVec, value, name string) {
+func (p *PrometheusReporter) setHistogramByMax(h *prometheus.HistogramVec, value, name string, labels childSALabels) {
 	max, ok := p.maxValue(name, value)
 	if !ok {
 		return
 	}
-	h.WithLabelValues().Observe(max)
+	h.WithLabelValues(labels.values()...).Observe(max)
 }
 
-func (p *PrometheusReporter) setHistogramByMin(h *prometheus.HistogramVec, value, name string) {
+func (p *PrometheusReporter) setHistogramByMin(h *prometheus.HistogramVec, value, name string, labels childSALabels) {
 	min, ok := p.minValue(name, value)
 	if !ok {
 		return
 	}
-	h.WithLabelValues().Observe(min)
+	h.WithLabelValues(labels.values()...).Observe(min)
 }
 
 // maxValue detects the max value of value. If max is detected the returned

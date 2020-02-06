@@ -8,7 +8,7 @@ import (
 )
 
 type Reporter interface {
-	IKESAStatus(conn vici.IKEConf, sa *vici.IkeSa)
+	IKESAStatus(ikeName string, conn vici.IKEConf, sa *vici.IkeSa)
 }
 
 func Collect(client *vici.ClientConn, reporter Reporter) {
@@ -63,11 +63,11 @@ func collectSasStats(configs []map[string]vici.IKEConf, sas []map[string]vici.Ik
 				continue
 			}
 			log.Infof("  ikeName: %s: sa: %#v", ikeName, ikeSa)
-			reporter.IKESAStatus(conf, &ikeSa)
+			reporter.IKESAStatus(ikeName, conf, &ikeSa)
 			delete(expectedConnections, ikeName)
 		}
 	}
-	for _, conf := range expectedConnections {
-		reporter.IKESAStatus(conf, nil)
+	for ikeName, conf := range expectedConnections {
+		reporter.IKESAStatus(ikeName, conf, nil)
 	}
 }
