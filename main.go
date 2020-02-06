@@ -60,8 +60,24 @@ func main() {
 	var shutdownWg sync.WaitGroup
 
 	if whoopingAddress != nil && *whoopingAddress != "" {
+		logger := log.With("name", "whooper")
 		whoopDaemon := daemon.New(daemon.Configuration{
-			Logger:   log.With("name", "whooper"),
+			Probes: &daemon.Probes{
+				Started: func(d time.Duration) {
+					logger.Infof("Whoop daemon started with interval %v", d)
+					prometheusReporter.Daemon.Started.WithLabelValues("whooper", d.String()).Inc()
+				},
+				Stopped: func() {
+					logger.Info("Whoop daemon stopped")
+					prometheusReporter.Daemon.Stopped.WithLabelValues("whooper").Inc()
+				},
+				Skipped: func() {
+					prometheusReporter.Daemon.Skipped.WithLabelValues("whooper").Inc()
+				},
+				Ticked: func() {
+					prometheusReporter.Daemon.Ticked.WithLabelValues("whooper").Inc()
+				},
+			},
 			Interval: 1 * time.Second,
 			Tick: func() {
 				whooper.Whoop(*whoopingAddress, fmt.Sprintf("http://localhost%s", *listenAddress))
@@ -104,7 +120,22 @@ func main() {
 			With("port", port)
 		logger.Infof("Start checking address %s:%v", address, port)
 		tcpCheckerDaemon := daemon.New(daemon.Configuration{
-			Logger:   logger,
+			Probes: &daemon.Probes{
+				Started: func(d time.Duration) {
+					logger.Infof("tcpchecker daemon started with interval %v", d)
+					prometheusReporter.Daemon.Started.WithLabelValues("tcpchecker", d.String()).Inc()
+				},
+				Stopped: func() {
+					logger.Info("tcpchecker daemon stopped")
+					prometheusReporter.Daemon.Stopped.WithLabelValues("tcpchecker").Inc()
+				},
+				Skipped: func() {
+					prometheusReporter.Daemon.Skipped.WithLabelValues("tcpchecker").Inc()
+				},
+				Ticked: func() {
+					prometheusReporter.Daemon.Ticked.WithLabelValues("tcpchecker").Inc()
+				},
+			},
 			Interval: 1 * time.Second,
 			Tick: func() {
 				tcpchecker.Check(name, address, int(port), tcpchecker.CompositeReporter(tcpchecker.LogReporter(logger), prometheusReporter.TcpChecker()))
@@ -148,9 +179,24 @@ func main() {
 		defer conn.Close()
 		client := vici.NewClientConn(conn)
 		defer client.Close()
-
+		logger := log.With("name", "strongswan")
 		d := daemon.New(daemon.Configuration{
-			Logger:   log.Base(),
+			Probes: &daemon.Probes{
+				Started: func(d time.Duration) {
+					logger.Infof("strongswan daemon started with interval %v", d)
+					prometheusReporter.Daemon.Started.WithLabelValues("tcpchecker", d.String()).Inc()
+				},
+				Stopped: func() {
+					logger.Info("strongswan daemon stopped")
+					prometheusReporter.Daemon.Stopped.WithLabelValues("tcpchecker").Inc()
+				},
+				Skipped: func() {
+					prometheusReporter.Daemon.Skipped.WithLabelValues("tcpchecker").Inc()
+				},
+				Ticked: func() {
+					prometheusReporter.Daemon.Ticked.WithLabelValues("tcpchecker").Inc()
+				},
+			},
 			Interval: 2 * time.Second,
 			Tick: func() {
 				strongswan.Collect(client, prometheusReporter)
