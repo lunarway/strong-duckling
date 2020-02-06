@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"net"
 	"os"
 	"os/signal"
 	"strconv"
@@ -13,7 +14,9 @@ import (
 	"github.com/lunarway/strong-duckling/internal/daemon"
 	"github.com/lunarway/strong-duckling/internal/http"
 	"github.com/lunarway/strong-duckling/internal/metrics"
+	"github.com/lunarway/strong-duckling/internal/strongswan"
 	"github.com/lunarway/strong-duckling/internal/tcpchecker"
+	"github.com/lunarway/strong-duckling/internal/vici"
 	"github.com/lunarway/strong-duckling/internal/whooping"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/log"
@@ -25,6 +28,10 @@ var (
 )
 
 func main() {
+	var exitCode int
+	defer func() {
+		os.Exit(exitCode)
+	}()
 	flags := kingpin.New("strong-duckling", "A small sidekick to strongswan VPN")
 	listenAddress := flags.Flag("listen", "Address on which to expose metrics.").String()
 	whoopingAddress := flags.Flag("whooping", "Address on which to start whooping.").String()
@@ -32,6 +39,7 @@ func main() {
 	log.AddFlags(flags)
 	flags.HelpFlag.Short('h')
 	flags.Version(version)
+	socket := flags.Flag("vici-socket", "VICI (charon.vici) socket to connect to. Usually /var/run/charon.vici").String()
 	kingpin.MustParse(flags.Parse(os.Args[1:]))
 
 	whooper := whooping.Whooper{}
@@ -41,7 +49,7 @@ func main() {
 		whooper.RegisterListener(httpServer, fmt.Sprintf("http://localhost%s", *listenAddress))
 		metrics.Register(httpServer)
 	}
-	prometheusReporter, err := metrics.NewPrometheusReporter(prometheus.DefaultRegisterer)
+	prometheusReporter, err := metrics.NewPrometheusReporter(prometheus.DefaultRegisterer, log.Base().With("name", "prometheusReporter"))
 	if err != nil {
 		log.Errorf("Failed to register metrics: %v", err)
 		os.Exit(1)
@@ -107,6 +115,7 @@ func main() {
 		go func() {
 			defer shutdownWg.Done()
 			tcpCheckerDaemon.Loop(shutdown)
+			componentDone <- nil
 		}()
 	}
 
@@ -117,6 +126,7 @@ func main() {
 		}()
 	}
 
+	shutdownWg.Add(1)
 	go func() {
 		defer shutdownWg.Done()
 		sigs := make(chan os.Signal, 1)
@@ -129,16 +139,44 @@ func main() {
 		}
 	}()
 
-	reason := <-componentDone
-	if reason != nil {
-		log.Errorf("exited due to error: %v", reason)
-	} else {
-		log.Info("exited due to a component shutting down")
+	if len(*socket) != 0 {
+		conn, err := net.Dial("unix", *socket)
+		if err != nil {
+			log.Errorf("Failed to establish socket connection to vici: %v", err)
+			os.Exit(1)
+		}
+		defer conn.Close()
+		client := vici.NewClientConn(conn)
+		defer client.Close()
+
+		d := daemon.New(daemon.Configuration{
+			Logger:   log.Base(),
+			Interval: 2 * time.Second,
+			Tick: func() {
+				strongswan.Collect(client, prometheusReporter)
+			},
+		})
+
+		go func() {
+			d.Loop(shutdown)
+			log.Infof("vici strongswan checker daemon stopped. Terminating...")
+			componentDone <- nil
+		}()
 	}
+
+	log.Infof("Strong duckling version %s", version)
+	prometheusReporter.Info(version)
+
+	// this is blocking until some component fails of a signal is received
+	reason := <-componentDone
+
 	close(shutdown)
 	log.Info("waiting for all components to shutdown")
 	shutdownWg.Wait()
 	if reason != nil {
-		os.Exit(1)
+		log.Errorf("exited due to error: %v", reason)
+		exitCode = 1
+	} else {
+		log.Info("exited due to a component shutting down")
 	}
 }
