@@ -85,7 +85,7 @@ func (whooper *Whooper) Whoop(endpoint string, listeningEndpoint string) {
 
 		if whoop.Message == "whoop whoop" {
 			whooper.open = true
-			whooper.latency = time.Now().Sub(now)
+			whooper.latency = time.Since(now)
 			whooper.drift = now.Add(whooper.latency / 2).Sub(whoop.Timestamp)
 			log.Debugf("Got whoop whoop from %s. RemoteStatus is open is: %v and latency: %v and drift is %s",
 				fullEndpoint, whoop.RemoteStatus.Open, whoop.RemoteStatus.Latency, whoop.RemoteStatus.Drift)
