@@ -11,15 +11,15 @@ import (
 // the Tick function though as without it nothing will ever be triggered by the
 // daemon.
 type Configuration struct {
-	Probes   *Probes
+	Reporter *Reporter
 	Interval time.Duration
 
 	// Tick is the function called in every interval by the daemon.
 	Tick func()
 }
 
-// Probes represents the available life cycle probes of a Daemon.
-type Probes struct {
+// Reporter represents the available life cycle probes of a Daemon.
+type Reporter struct {
 	Started func(time.Duration)
 	Stopped func()
 	Ticked  func()
@@ -27,20 +27,20 @@ type Probes struct {
 }
 
 func (c *Configuration) setDefaults() {
-	if c.Probes == nil {
-		c.Probes = &Probes{}
+	if c.Reporter == nil {
+		c.Reporter = &Reporter{}
 	}
-	if c.Probes.Started == nil {
-		c.Probes.Started = func(time.Duration) {}
+	if c.Reporter.Started == nil {
+		c.Reporter.Started = func(time.Duration) {}
 	}
-	if c.Probes.Stopped == nil {
-		c.Probes.Stopped = func() {}
+	if c.Reporter.Stopped == nil {
+		c.Reporter.Stopped = func() {}
 	}
-	if c.Probes.Skipped == nil {
-		c.Probes.Skipped = func() {}
+	if c.Reporter.Skipped == nil {
+		c.Reporter.Skipped = func() {}
 	}
-	if c.Probes.Ticked == nil {
-		c.Probes.Ticked = func() {}
+	if c.Reporter.Ticked == nil {
+		c.Reporter.Ticked = func() {}
 	}
 	if c.Interval == 0 {
 		c.Interval = 5 * time.Minute
@@ -76,21 +76,21 @@ func (d *Daemon) askForTick() {
 	select {
 	case d.tickSoon <- struct{}{}:
 	default:
-		d.config.Probes.Skipped()
+		d.config.Reporter.Skipped()
 	}
 }
 
 // Loop starts the daemon tick loop. It will run until provided stop
 // channel is closed.
 func (d *Daemon) Loop(stop chan struct{}) {
-	d.config.Probes.Started(d.config.Interval)
+	d.config.Reporter.Started(d.config.Interval)
 	timer := time.NewTimer(d.config.Interval)
 	d.askForTick()
 
 	for {
 		select {
 		case <-stop:
-			d.config.Probes.Stopped()
+			d.config.Reporter.Stopped()
 			// ensure to drain the timer channel before exiting as we don't know if
 			// the shutdown is started before or after the timer have triggered.
 			if !timer.Stop() {
@@ -110,7 +110,7 @@ func (d *Daemon) Loop(stop chan struct{}) {
 				}
 			}
 			d.config.Tick()
-			d.config.Probes.Ticked()
+			d.config.Reporter.Ticked()
 			timer.Reset(d.config.Interval)
 		case <-timer.C:
 			// request a new tick in the tick buffer. This might be a noop if a tick

@@ -18,7 +18,7 @@ func TestDaemon_Loop(t *testing.T) {
 	var actualTickCount int32
 	d := daemon.New(daemon.Configuration{
 		Interval: tickInterval,
-		Probes: &daemon.Probes{
+		Reporter: &daemon.Reporter{
 			Started: func(time.Duration) {
 				t.Log("Daemon started")
 			},

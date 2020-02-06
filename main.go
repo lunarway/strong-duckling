@@ -62,7 +62,7 @@ func main() {
 	if whoopingAddress != nil && *whoopingAddress != "" {
 		logger := log.With("name", "whooper")
 		whoopDaemon := daemon.New(daemon.Configuration{
-			Probes:   defaultDaemonProbes(logger, prometheusReporter, "whopper"),
+			Reporter: defaultDaemonReporter(logger, prometheusReporter, "whopper"),
 			Interval: 1 * time.Second,
 			Tick: func() {
 				whooper.Whoop(*whoopingAddress, fmt.Sprintf("http://localhost%s", *listenAddress))
@@ -105,7 +105,7 @@ func main() {
 			With("port", port)
 		logger.Infof("Start checking address %s:%v", address, port)
 		tcpCheckerDaemon := daemon.New(daemon.Configuration{
-			Probes:   defaultDaemonProbes(logger, prometheusReporter, "tcpchecker"),
+			Reporter: defaultDaemonReporter(logger, prometheusReporter, "tcpchecker"),
 			Interval: 1 * time.Second,
 			Tick: func() {
 				tcpchecker.Check(name, address, int(port), tcpchecker.CompositeReporter(tcpchecker.LogReporter(logger), prometheusReporter.TcpChecker()))
@@ -150,7 +150,7 @@ func main() {
 		client := vici.NewClientConn(conn)
 		defer client.Close()
 		d := daemon.New(daemon.Configuration{
-			Probes:   defaultDaemonProbes(log.Base().With("name", "strongswan"), prometheusReporter, "strongswan"),
+			Reporter: defaultDaemonReporter(log.Base().With("name", "strongswan"), prometheusReporter, "strongswan"),
 			Interval: 2 * time.Second,
 			Tick: func() {
 				strongswan.Collect(client, prometheusReporter)
@@ -181,14 +181,14 @@ func main() {
 	}
 }
 
-func defaultDaemonProbes(logger log.Logger, prometheusReporter *metrics.PrometheusReporter, name string) *daemon.Probes {
-	return &daemon.Probes{
+func defaultDaemonReporter(logger log.Logger, prometheusReporter *metrics.PrometheusReporter, name string) *daemon.Reporter {
+	return &daemon.Reporter{
 		Started: func(d time.Duration) {
-			logger.Infof("%s daemon started with interval %v", name, d)
+			logger.With("state", "started").Infof("%s daemon started with interval %v", name, d)
 			prometheusReporter.Daemon.Started.WithLabelValues(name, d.String()).Inc()
 		},
 		Stopped: func() {
-			logger.Infof("%s daemon stopped", name)
+			logger.With("state", "stopped").Infof("%s daemon stopped", name)
 			prometheusReporter.Daemon.Stopped.WithLabelValues(name).Inc()
 		},
 		Skipped: func() {
