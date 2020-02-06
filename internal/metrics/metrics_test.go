@@ -49,7 +49,7 @@ func TestIKESAStatus_gauges(t *testing.T) {
 				return
 			}
 
-			p.IKESAStatus(tc.conf, tc.sa)
+			p.IKESAStatus("", tc.conf, tc.sa)
 
 			assert.Equal(t, tc.packetsIn, testutil.ToFloat64(p.ikeSA.packetsIn), "packets in not as expected")
 			assert.Equal(t, tc.packetsOut, testutil.ToFloat64(p.ikeSA.packetsOut), "packets out not as expected")
@@ -91,7 +91,7 @@ func TestIKESAStatus_installs(t *testing.T) {
 			}
 
 			for _, s := range tc.installTimeSeconds {
-				p.IKESAStatus(vici.IKEConf{}, &vici.IkeSa{
+				p.IKESAStatus("", vici.IKEConf{}, &vici.IkeSa{
 					ChildSAs: map[string]vici.ChildSA{
 						"net-0": vici.ChildSA{
 							InstallTimeSeconds: s,
@@ -125,21 +125,21 @@ func TestIKESAStatus_rekeySeconds(t *testing.T) {
 			rekeySet:         true,
 			histogram: `# HELP strong_duckling_ike_sa_rekey_seconds Duration between re-keying
 # TYPE strong_duckling_ike_sa_rekey_seconds histogram
-strong_duckling_ike_sa_rekey_seconds_bucket{le="15"} 0
-strong_duckling_ike_sa_rekey_seconds_bucket{le="30"} 1
-strong_duckling_ike_sa_rekey_seconds_bucket{le="60"} 1
-strong_duckling_ike_sa_rekey_seconds_bucket{le="120"} 1
-strong_duckling_ike_sa_rekey_seconds_bucket{le="240"} 1
-strong_duckling_ike_sa_rekey_seconds_bucket{le="480"} 1
-strong_duckling_ike_sa_rekey_seconds_bucket{le="960"} 1
-strong_duckling_ike_sa_rekey_seconds_bucket{le="1920"} 1
-strong_duckling_ike_sa_rekey_seconds_bucket{le="3840"} 1
-strong_duckling_ike_sa_rekey_seconds_bucket{le="7680"} 1
-strong_duckling_ike_sa_rekey_seconds_bucket{le="15360"} 1
-strong_duckling_ike_sa_rekey_seconds_bucket{le="30720"} 1
-strong_duckling_ike_sa_rekey_seconds_bucket{le="+Inf"} 1
-strong_duckling_ike_sa_rekey_seconds_sum 30
-strong_duckling_ike_sa_rekey_seconds_count 1
+strong_duckling_ike_sa_rekey_seconds_bucket{child_sa_name="",ike_sa_name="",local_ip_range="",local_peer_ip="",remote_ip_range="",remote_peer_ip="",le="15"} 0
+strong_duckling_ike_sa_rekey_seconds_bucket{child_sa_name="",ike_sa_name="",local_ip_range="",local_peer_ip="",remote_ip_range="",remote_peer_ip="",le="30"} 1
+strong_duckling_ike_sa_rekey_seconds_bucket{child_sa_name="",ike_sa_name="",local_ip_range="",local_peer_ip="",remote_ip_range="",remote_peer_ip="",le="60"} 1
+strong_duckling_ike_sa_rekey_seconds_bucket{child_sa_name="",ike_sa_name="",local_ip_range="",local_peer_ip="",remote_ip_range="",remote_peer_ip="",le="120"} 1
+strong_duckling_ike_sa_rekey_seconds_bucket{child_sa_name="",ike_sa_name="",local_ip_range="",local_peer_ip="",remote_ip_range="",remote_peer_ip="",le="240"} 1
+strong_duckling_ike_sa_rekey_seconds_bucket{child_sa_name="",ike_sa_name="",local_ip_range="",local_peer_ip="",remote_ip_range="",remote_peer_ip="",le="480"} 1
+strong_duckling_ike_sa_rekey_seconds_bucket{child_sa_name="",ike_sa_name="",local_ip_range="",local_peer_ip="",remote_ip_range="",remote_peer_ip="",le="960"} 1
+strong_duckling_ike_sa_rekey_seconds_bucket{child_sa_name="",ike_sa_name="",local_ip_range="",local_peer_ip="",remote_ip_range="",remote_peer_ip="",le="1920"} 1
+strong_duckling_ike_sa_rekey_seconds_bucket{child_sa_name="",ike_sa_name="",local_ip_range="",local_peer_ip="",remote_ip_range="",remote_peer_ip="",le="3840"} 1
+strong_duckling_ike_sa_rekey_seconds_bucket{child_sa_name="",ike_sa_name="",local_ip_range="",local_peer_ip="",remote_ip_range="",remote_peer_ip="",le="7680"} 1
+strong_duckling_ike_sa_rekey_seconds_bucket{child_sa_name="",ike_sa_name="",local_ip_range="",local_peer_ip="",remote_ip_range="",remote_peer_ip="",le="15360"} 1
+strong_duckling_ike_sa_rekey_seconds_bucket{child_sa_name="",ike_sa_name="",local_ip_range="",local_peer_ip="",remote_ip_range="",remote_peer_ip="",le="30720"} 1
+strong_duckling_ike_sa_rekey_seconds_bucket{child_sa_name="",ike_sa_name="",local_ip_range="",local_peer_ip="",remote_ip_range="",remote_peer_ip="",le="+Inf"} 1
+strong_duckling_ike_sa_rekey_seconds_sum{child_sa_name="",ike_sa_name="",local_ip_range="",local_peer_ip="",remote_ip_range="",remote_peer_ip=""} 30
+strong_duckling_ike_sa_rekey_seconds_count{child_sa_name="",ike_sa_name="",local_ip_range="",local_peer_ip="",remote_ip_range="",remote_peer_ip=""} 1
 `,
 		},
 		{
@@ -149,21 +149,21 @@ strong_duckling_ike_sa_rekey_seconds_count 1
 			rekeySet:         true,
 			histogram: `# HELP strong_duckling_ike_sa_rekey_seconds Duration between re-keying
 # TYPE strong_duckling_ike_sa_rekey_seconds histogram
-strong_duckling_ike_sa_rekey_seconds_bucket{le="15"} 0
-strong_duckling_ike_sa_rekey_seconds_bucket{le="30"} 1
-strong_duckling_ike_sa_rekey_seconds_bucket{le="60"} 2
-strong_duckling_ike_sa_rekey_seconds_bucket{le="120"} 2
-strong_duckling_ike_sa_rekey_seconds_bucket{le="240"} 2
-strong_duckling_ike_sa_rekey_seconds_bucket{le="480"} 2
-strong_duckling_ike_sa_rekey_seconds_bucket{le="960"} 2
-strong_duckling_ike_sa_rekey_seconds_bucket{le="1920"} 2
-strong_duckling_ike_sa_rekey_seconds_bucket{le="3840"} 2
-strong_duckling_ike_sa_rekey_seconds_bucket{le="7680"} 2
-strong_duckling_ike_sa_rekey_seconds_bucket{le="15360"} 2
-strong_duckling_ike_sa_rekey_seconds_bucket{le="30720"} 2
-strong_duckling_ike_sa_rekey_seconds_bucket{le="+Inf"} 2
-strong_duckling_ike_sa_rekey_seconds_sum 80
-strong_duckling_ike_sa_rekey_seconds_count 2
+strong_duckling_ike_sa_rekey_seconds_bucket{child_sa_name="",ike_sa_name="",local_ip_range="",local_peer_ip="",remote_ip_range="",remote_peer_ip="",le="15"} 0
+strong_duckling_ike_sa_rekey_seconds_bucket{child_sa_name="",ike_sa_name="",local_ip_range="",local_peer_ip="",remote_ip_range="",remote_peer_ip="",le="30"} 1
+strong_duckling_ike_sa_rekey_seconds_bucket{child_sa_name="",ike_sa_name="",local_ip_range="",local_peer_ip="",remote_ip_range="",remote_peer_ip="",le="60"} 2
+strong_duckling_ike_sa_rekey_seconds_bucket{child_sa_name="",ike_sa_name="",local_ip_range="",local_peer_ip="",remote_ip_range="",remote_peer_ip="",le="120"} 2
+strong_duckling_ike_sa_rekey_seconds_bucket{child_sa_name="",ike_sa_name="",local_ip_range="",local_peer_ip="",remote_ip_range="",remote_peer_ip="",le="240"} 2
+strong_duckling_ike_sa_rekey_seconds_bucket{child_sa_name="",ike_sa_name="",local_ip_range="",local_peer_ip="",remote_ip_range="",remote_peer_ip="",le="480"} 2
+strong_duckling_ike_sa_rekey_seconds_bucket{child_sa_name="",ike_sa_name="",local_ip_range="",local_peer_ip="",remote_ip_range="",remote_peer_ip="",le="960"} 2
+strong_duckling_ike_sa_rekey_seconds_bucket{child_sa_name="",ike_sa_name="",local_ip_range="",local_peer_ip="",remote_ip_range="",remote_peer_ip="",le="1920"} 2
+strong_duckling_ike_sa_rekey_seconds_bucket{child_sa_name="",ike_sa_name="",local_ip_range="",local_peer_ip="",remote_ip_range="",remote_peer_ip="",le="3840"} 2
+strong_duckling_ike_sa_rekey_seconds_bucket{child_sa_name="",ike_sa_name="",local_ip_range="",local_peer_ip="",remote_ip_range="",remote_peer_ip="",le="7680"} 2
+strong_duckling_ike_sa_rekey_seconds_bucket{child_sa_name="",ike_sa_name="",local_ip_range="",local_peer_ip="",remote_ip_range="",remote_peer_ip="",le="15360"} 2
+strong_duckling_ike_sa_rekey_seconds_bucket{child_sa_name="",ike_sa_name="",local_ip_range="",local_peer_ip="",remote_ip_range="",remote_peer_ip="",le="30720"} 2
+strong_duckling_ike_sa_rekey_seconds_bucket{child_sa_name="",ike_sa_name="",local_ip_range="",local_peer_ip="",remote_ip_range="",remote_peer_ip="",le="+Inf"} 2
+strong_duckling_ike_sa_rekey_seconds_sum{child_sa_name="",ike_sa_name="",local_ip_range="",local_peer_ip="",remote_ip_range="",remote_peer_ip=""} 80
+strong_duckling_ike_sa_rekey_seconds_count{child_sa_name="",ike_sa_name="",local_ip_range="",local_peer_ip="",remote_ip_range="",remote_peer_ip=""} 2
 `,
 		},
 	}
@@ -177,7 +177,7 @@ strong_duckling_ike_sa_rekey_seconds_count 2
 			}
 
 			for _, s := range tc.rekeySeconds {
-				p.IKESAStatus(vici.IKEConf{
+				p.IKESAStatus("", vici.IKEConf{
 					RekeyTimeSeconds: tc.connRekeySeconds,
 				}, &vici.IkeSa{
 					ChildSAs: map[string]vici.ChildSA{
@@ -324,33 +324,38 @@ func TestPrometheusReporter_minValue(t *testing.T) {
 
 func TestIKESAStatus_labels(t *testing.T) {
 	tt := []struct {
-		name   string
-		conf   vici.IKEConf
-		sa     *vici.IkeSa
-		output string
+		name    string
+		ikeName string
+		conf    vici.IKEConf
+		sa      *vici.IkeSa
+		output  string
 	}{
 		{
-			name: "complete label set",
-			conf: vici.IKEConf{},
+			name:    "complete label set",
+			ikeName: "gw-gw",
+			conf:    vici.IKEConf{},
 			sa: &vici.IkeSa{
+				LocalHost:  "localhost",
+				RemoteHost: "remotehost",
 				ChildSAs: map[string]vici.ChildSA{
-					"net-1": vici.ChildSA{
-						State:      "INSTALLED",
-						IPsecMode:  "TUNNEL",
-						PacketsIn:  "123",
-						PacketsOut: "321",
+					"net-1-0": vici.ChildSA{
+						Name:                   "net-1",
+						LocalTrafficSelectors:  []string{"local1", "local2"},
+						RemoteTrafficSelectors: []string{"remote1", "remote2"},
+						PacketsIn:              "123",
+						PacketsOut:             "321",
 					},
 				},
 			},
 			output: `# HELP strong_duckling_ike_sa_installs_total Total number of SA installs
 # TYPE strong_duckling_ike_sa_installs_total counter
-strong_duckling_ike_sa_installs_total 1
+strong_duckling_ike_sa_installs_total{child_sa_name="net-1",ike_sa_name="gw-gw",local_ip_range="local1,local2",local_peer_ip="localhost",remote_ip_range="remote1,remote2",remote_peer_ip="remotehost"} 1
 # HELP strong_duckling_ike_sa_packets_in_total Total number of received packets
 # TYPE strong_duckling_ike_sa_packets_in_total gauge
-strong_duckling_ike_sa_packets_in_total{child_sa_name="net-1"} 123
+strong_duckling_ike_sa_packets_in_total{child_sa_name="net-1",ike_sa_name="gw-gw",local_ip_range="local1,local2",local_peer_ip="localhost",remote_ip_range="remote1,remote2",remote_peer_ip="remotehost"} 123
 # HELP strong_duckling_ike_sa_packets_out_total Total number of transmitted packets
 # TYPE strong_duckling_ike_sa_packets_out_total gauge
-strong_duckling_ike_sa_packets_out_total{child_sa_name="net-1"} 321
+strong_duckling_ike_sa_packets_out_total{child_sa_name="net-1",ike_sa_name="gw-gw",local_ip_range="local1,local2",local_peer_ip="localhost",remote_ip_range="remote1,remote2",remote_peer_ip="remotehost"} 321
 `,
 		},
 	}
@@ -362,7 +367,7 @@ strong_duckling_ike_sa_packets_out_total{child_sa_name="net-1"} 321
 			if !assert.NoError(t, err, "unexpected initialization error") {
 				return
 			}
-			p.IKESAStatus(tc.conf, tc.sa)
+			p.IKESAStatus(tc.ikeName, tc.conf, tc.sa)
 			err = testutil.GatherAndCompare(reg, strings.NewReader(tc.output))
 			assert.NoError(t, err, "registered metrics not as expected")
 		})

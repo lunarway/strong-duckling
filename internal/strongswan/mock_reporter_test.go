@@ -10,7 +10,7 @@ type MockReporter struct {
 	mock.Mock
 }
 
-// IKESAStatus provides a mock function with given fields: conn, sa
-func (_m *MockReporter) IKESAStatus(conn vici.IKEConf, sa *vici.IkeSa) {
-	_m.Called(conn, sa)
+// IKESAStatus provides a mock function with given fields: ikeName, conn, sa
+func (_m *MockReporter) IKESAStatus(ikeName string, conn vici.IKEConf, sa *vici.IkeSa) {
+	_m.Called(ikeName, conn, sa)
 }

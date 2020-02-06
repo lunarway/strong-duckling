@@ -51,8 +51,8 @@ func TestCollectSasStats(t *testing.T) {
 			reporter.Test(t)
 			var reportedConf *vici.IKEConf
 			var reportedSA *vici.IkeSa
-			reporter.On("IKESAStatus", mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
-				conf, sa := args[0].(vici.IKEConf), args[1].(*vici.IkeSa)
+			reporter.On("IKESAStatus", mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+				conf, sa := args[1].(vici.IKEConf), args[2].(*vici.IkeSa)
 				reportedConf = &conf
 				reportedSA = sa
 			})
