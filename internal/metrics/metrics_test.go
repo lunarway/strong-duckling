@@ -125,13 +125,18 @@ func TestIKESAStatus_rekeySeconds(t *testing.T) {
 			rekeySet:         true,
 			histogram: `# HELP strong_duckling_ike_sa_rekey_seconds Duration between re-keying
 # TYPE strong_duckling_ike_sa_rekey_seconds histogram
-strong_duckling_ike_sa_rekey_seconds_bucket{le="10"} 0
+strong_duckling_ike_sa_rekey_seconds_bucket{le="15"} 0
 strong_duckling_ike_sa_rekey_seconds_bucket{le="30"} 1
 strong_duckling_ike_sa_rekey_seconds_bucket{le="60"} 1
 strong_duckling_ike_sa_rekey_seconds_bucket{le="120"} 1
-strong_duckling_ike_sa_rekey_seconds_bucket{le="300"} 1
+strong_duckling_ike_sa_rekey_seconds_bucket{le="240"} 1
 strong_duckling_ike_sa_rekey_seconds_bucket{le="480"} 1
-strong_duckling_ike_sa_rekey_seconds_bucket{le="600"} 1
+strong_duckling_ike_sa_rekey_seconds_bucket{le="960"} 1
+strong_duckling_ike_sa_rekey_seconds_bucket{le="1920"} 1
+strong_duckling_ike_sa_rekey_seconds_bucket{le="3840"} 1
+strong_duckling_ike_sa_rekey_seconds_bucket{le="7680"} 1
+strong_duckling_ike_sa_rekey_seconds_bucket{le="15360"} 1
+strong_duckling_ike_sa_rekey_seconds_bucket{le="30720"} 1
 strong_duckling_ike_sa_rekey_seconds_bucket{le="+Inf"} 1
 strong_duckling_ike_sa_rekey_seconds_sum 30
 strong_duckling_ike_sa_rekey_seconds_count 1
@@ -144,13 +149,18 @@ strong_duckling_ike_sa_rekey_seconds_count 1
 			rekeySet:         true,
 			histogram: `# HELP strong_duckling_ike_sa_rekey_seconds Duration between re-keying
 # TYPE strong_duckling_ike_sa_rekey_seconds histogram
-strong_duckling_ike_sa_rekey_seconds_bucket{le="10"} 0
+strong_duckling_ike_sa_rekey_seconds_bucket{le="15"} 0
 strong_duckling_ike_sa_rekey_seconds_bucket{le="30"} 1
 strong_duckling_ike_sa_rekey_seconds_bucket{le="60"} 2
 strong_duckling_ike_sa_rekey_seconds_bucket{le="120"} 2
-strong_duckling_ike_sa_rekey_seconds_bucket{le="300"} 2
+strong_duckling_ike_sa_rekey_seconds_bucket{le="240"} 2
 strong_duckling_ike_sa_rekey_seconds_bucket{le="480"} 2
-strong_duckling_ike_sa_rekey_seconds_bucket{le="600"} 2
+strong_duckling_ike_sa_rekey_seconds_bucket{le="960"} 2
+strong_duckling_ike_sa_rekey_seconds_bucket{le="1920"} 2
+strong_duckling_ike_sa_rekey_seconds_bucket{le="3840"} 2
+strong_duckling_ike_sa_rekey_seconds_bucket{le="7680"} 2
+strong_duckling_ike_sa_rekey_seconds_bucket{le="15360"} 2
+strong_duckling_ike_sa_rekey_seconds_bucket{le="30720"} 2
 strong_duckling_ike_sa_rekey_seconds_bucket{le="+Inf"} 2
 strong_duckling_ike_sa_rekey_seconds_sum 80
 strong_duckling_ike_sa_rekey_seconds_count 2
