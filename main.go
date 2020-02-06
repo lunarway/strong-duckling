@@ -184,17 +184,17 @@ func main() {
 			Probes: &daemon.Probes{
 				Started: func(d time.Duration) {
 					logger.Infof("strongswan daemon started with interval %v", d)
-					prometheusReporter.Daemon.Started.WithLabelValues("tcpchecker", d.String()).Inc()
+					prometheusReporter.Daemon.Started.WithLabelValues("strongswan", d.String()).Inc()
 				},
 				Stopped: func() {
 					logger.Info("strongswan daemon stopped")
-					prometheusReporter.Daemon.Stopped.WithLabelValues("tcpchecker").Inc()
+					prometheusReporter.Daemon.Stopped.WithLabelValues("strongswan").Inc()
 				},
 				Skipped: func() {
-					prometheusReporter.Daemon.Skipped.WithLabelValues("tcpchecker").Inc()
+					prometheusReporter.Daemon.Skipped.WithLabelValues("strongswan").Inc()
 				},
 				Ticked: func() {
-					prometheusReporter.Daemon.Ticked.WithLabelValues("tcpchecker").Inc()
+					prometheusReporter.Daemon.Ticked.WithLabelValues("strongswan").Inc()
 				},
 			},
 			Interval: 2 * time.Second,
