@@ -32,7 +32,7 @@ func (whooper *Whooper) RegisterListener(serveMux *http.ServeMux, listeningAddre
 
 		if whoop.Message == "whoop" {
 			r.Header.Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(Whoop{
+			err := json.NewEncoder(w).Encode(Whoop{
 				From:      listeningAddress,
 				Message:   "whoop whoop",
 				Timestamp: time.Now(),
@@ -42,6 +42,9 @@ func (whooper *Whooper) RegisterListener(serveMux *http.ServeMux, listeningAddre
 					Drift:   whooper.drift,
 				},
 			})
+			if err != nil {
+				log.Errorf("Failed to marshal whopp: %+v", err)
+			}
 		} else {
 			log.Debugf("Got error trying to answer whoop message: %s", whoop.Message)
 			http.Error(w, "can't understand body", http.StatusBadRequest)
@@ -55,7 +58,7 @@ func (whooper *Whooper) Whoop(endpoint string, listeningEndpoint string) {
 
 	now := time.Now()
 	buf := new(bytes.Buffer)
-	json.NewEncoder(buf).Encode(Whoop{
+	err := json.NewEncoder(buf).Encode(Whoop{
 		From:      listeningEndpoint,
 		Message:   "whoop",
 		Timestamp: now,
@@ -65,7 +68,10 @@ func (whooper *Whooper) Whoop(endpoint string, listeningEndpoint string) {
 			Drift:   whooper.drift,
 		},
 	})
-
+	if err != nil {
+		log.Errorf("Failed to marshal whoop: %+v", err)
+		return
+	}
 	func() {
 		resp, err := http.Post(fullEndpoint, "application/json", buf)
 		if err != nil {
