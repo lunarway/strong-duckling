@@ -1,10 +1,7 @@
 package daemon
 
 import (
-	"os"
 	"time"
-
-	"github.com/prometheus/common/log"
 )
 
 // Configuration is a configuration struct specifying what and how a Daemon
@@ -14,16 +11,36 @@ import (
 // the Tick function though as without it nothing will ever be triggered by the
 // daemon.
 type Configuration struct {
-	Logger   log.Logger
+	Reporter *Reporter
 	Interval time.Duration
 
 	// Tick is the function called in every interval by the daemon.
 	Tick func()
 }
 
+// Reporter represents the available life cycle probes of a Daemon.
+type Reporter struct {
+	Started func(time.Duration)
+	Stopped func()
+	Ticked  func()
+	Skipped func()
+}
+
 func (c *Configuration) setDefaults() {
-	if c.Logger == nil {
-		c.Logger = log.NewLogger(os.Stderr).With("name", "daemon")
+	if c.Reporter == nil {
+		c.Reporter = &Reporter{}
+	}
+	if c.Reporter.Started == nil {
+		c.Reporter.Started = func(time.Duration) {}
+	}
+	if c.Reporter.Stopped == nil {
+		c.Reporter.Stopped = func() {}
+	}
+	if c.Reporter.Skipped == nil {
+		c.Reporter.Skipped = func() {}
+	}
+	if c.Reporter.Ticked == nil {
+		c.Reporter.Ticked = func() {}
 	}
 	if c.Interval == 0 {
 		c.Interval = 5 * time.Minute
@@ -59,21 +76,21 @@ func (d *Daemon) askForTick() {
 	select {
 	case d.tickSoon <- struct{}{}:
 	default:
-		d.config.Logger.Info("Skipping tick as one is already in progress")
+		d.config.Reporter.Skipped()
 	}
 }
 
 // Loop starts the daemon tick loop. It will run until provided stop
 // channel is closed.
 func (d *Daemon) Loop(stop chan struct{}) {
-	d.config.Logger.Info("Starting loop")
+	d.config.Reporter.Started(d.config.Interval)
 	timer := time.NewTimer(d.config.Interval)
 	d.askForTick()
 
 	for {
 		select {
 		case <-stop:
-			d.config.Logger.Info("Stopping loop")
+			d.config.Reporter.Stopped()
 			// ensure to drain the timer channel before exiting as we don't know if
 			// the shutdown is started before or after the timer have triggered.
 			if !timer.Stop() {
@@ -93,9 +110,9 @@ func (d *Daemon) Loop(stop chan struct{}) {
 				}
 			}
 			d.config.Tick()
+			d.config.Reporter.Ticked()
 			timer.Reset(d.config.Interval)
 		case <-timer.C:
-			d.config.Logger.Debugf("Tick timer asking for tick")
 			// request a new tick in the tick buffer. This might be a noop if a tick
 			// is already running.
 			d.askForTick()
