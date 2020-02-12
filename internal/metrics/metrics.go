@@ -47,6 +47,7 @@ func (pr *PrometheusReporter) TcpChecker() tcpchecker.Reporter {
 }
 
 type tcpChecker struct {
+	checks           *prometheus.CounterVec
 	open             *prometheus.GaugeVec
 	connectedTotal   *prometheus.CounterVec
 	disconectedTotal *prometheus.CounterVec
@@ -113,6 +114,12 @@ func NewPrometheusReporter(reg prometheus.Registerer, logger Logger) (*Prometheu
 			Help:      "Version info of strong_duckling",
 		}, []string{"version"}),
 		tcpChecker: &tcpChecker{
+			checks: prometheus.NewCounterVec(prometheus.CounterOpts{
+				Namespace: namespace,
+				Subsystem: subSystemTcpChecker,
+				Name:      "checked_total",
+				Help:      "Total number of times the connection has been checked",
+			}, []string{"name", "address", "port"}),
 			open: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 				Namespace: namespace,
 				Subsystem: subSystemTcpChecker,
@@ -282,14 +289,17 @@ func (p *PrometheusReporter) Info(strongDucklingVersion string) {
 }
 
 func (r *tcpChecker) ReportPortCheck(report tcpchecker.Report) {
+	labelValues := []string{report.Name, report.Address, fmt.Sprintf("%d", report.Port)}
+	r.checks.WithLabelValues(labelValues...).Inc()
 	if report.Open {
-		r.open.WithLabelValues(report.Name, report.Address, fmt.Sprintf("%d", report.Port)).Set(1)
+		r.open.WithLabelValues(labelValues...).Set(1)
 		if r.previousOpenState == nil || *r.previousOpenState != report.Open {
-			r.connectedTotal.WithLabelValues(report.Name, report.Address, fmt.Sprintf("%d", report.Port)).Add(1)
+			r.connectedTotal.WithLabelValues(labelValues...).Add(1)
 		}
 	} else {
+		r.open.WithLabelValues(labelValues...).Set(0)
 		if r.previousOpenState == nil || *r.previousOpenState != report.Open {
-			r.disconectedTotal.WithLabelValues(report.Name, report.Address, fmt.Sprintf("%d", report.Port)).Add(0)
+			r.disconectedTotal.WithLabelValues(labelValues...).Add(0)
 		}
 	}
 	r.previousOpenState = &report.Open
