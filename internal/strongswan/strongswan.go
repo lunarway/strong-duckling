@@ -54,7 +54,6 @@ func collectSasStats(configs []map[string]vici.IKEConf, sas []map[string]vici.Ik
 		}
 	}
 
-	log.Infof("Sas: %d", len(sas))
 	for _, sa := range sas {
 		for ikeName, ikeSa := range sa {
 			conf, ok := expectedConnections[ikeName]
@@ -62,12 +61,18 @@ func collectSasStats(configs []map[string]vici.IKEConf, sas []map[string]vici.Ik
 				log.Errorf("Unexpected SA: %s: %#v", ikeName, ikeSa)
 				continue
 			}
-			log.Infof("  ikeName: %s: sa: %#v", ikeName, ikeSa)
+			log.With("conf", conf).
+				With("sa", ikeSa).
+				With("ikeName", ikeName).
+				Infof("Reporting on ike name '%s'", ikeName)
 			reporter.IKESAStatus(ikeName, conf, &ikeSa)
 			delete(expectedConnections, ikeName)
 		}
 	}
 	for ikeName, conf := range expectedConnections {
+		log.With("conf", conf).
+			With("ikeName", ikeName).
+			Infof("Reporting config without active SAs on '%s'", ikeName)
 		reporter.IKESAStatus(ikeName, conf, nil)
 	}
 }

@@ -53,7 +53,7 @@ func Check(name string, address string, port int, reporter Reporter) {
 				Address: address,
 				Port:    port,
 				Open:    true,
-				Status:  "Open",
+				Status:  "Open (closed by us)",
 				Error:   nil,
 				Content: output.String(),
 			})
@@ -75,7 +75,7 @@ func Check(name string, address string, port int, reporter Reporter) {
 		Address: address,
 		Port:    port,
 		Open:    true,
-		Status:  "Open",
+		Status:  "Open (closed by peer)",
 		Error:   nil,
 		Content: output.String(),
 	})
