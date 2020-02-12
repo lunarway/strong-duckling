@@ -13,6 +13,7 @@ type logReporter struct {
 }
 
 func (r *logReporter) ReportPortCheck(report Report) {
+	l := r.Logger.With("report", report)
 	switch {
 	case report.Open && r.lastOpen:
 		// Port is still open - great
@@ -20,23 +21,22 @@ func (r *logReporter) ReportPortCheck(report Report) {
 		// Port closed
 		r.lastReport = time.Now()
 		r.lastOpen = report.Open
-		r.Logger.
+		l.
 			With("status", "closed").
 			Infof("TCP connection to %s closed", report.Name)
 	case report.Open && !r.lastOpen:
 		// Port opened
 		r.lastReport = time.Now()
 		r.lastOpen = report.Open
-		r.Logger.
+		l.
 			With("status", "opened").
-			With("content", report.Content).
 			Infof("TCP connection to %s opened", report.Name)
 	case !report.Open && !r.lastOpen:
 		// Port still closed
 		if time.Since(r.lastReport) > 5*time.Minute {
 			r.lastReport = time.Now()
 			r.lastOpen = report.Open
-			r.Logger.
+			l.
 				With("status", "closed").
 				Infof("TCP connection to %s is still closed", report.Name)
 		}
