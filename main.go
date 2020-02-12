@@ -116,7 +116,6 @@ func main() {
 		go func() {
 			defer shutdownWg.Done()
 			tcpCheckerDaemon.Loop(shutdown)
-			componentDone <- nil
 		}()
 	}
 
@@ -160,7 +159,6 @@ func main() {
 		go func() {
 			d.Loop(shutdown)
 			log.Infof("vici strongswan checker daemon stopped. Terminating...")
-			componentDone <- nil
 		}()
 	}
 
