@@ -156,7 +156,9 @@ func main() {
 			},
 		})
 
+		shutdownWg.Add(1)
 		go func() {
+			defer shutdownWg.Done()
 			d.Loop(shutdown)
 			log.Infof("vici strongswan checker daemon stopped. Terminating...")
 		}()
