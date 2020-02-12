@@ -19,14 +19,14 @@ The application exposes Prometheus metrics on `/metrics` for general insight int
 
 Enable TCP checker metrics by setting `--tcp-checker` to continually try to establish TCP connections to a remote and report the results in logs and metrics.
 
-| Name                                             | Type    | Description                                     |
-| ------------------------------------------------ | ------- | ----------------------------------------------- |
-| `strong_duckling_tcp_checker_checked_total`      | Counter | Total number of checks performed on the address |
-| `strong_duckling_tcp_checker_connected_total`    | Counter | Total number of changes to connected state      |
-| `strong_duckling_tcp_checker_disconnected_total` | Counter | Total number of changes to disconnected state   |
-| `strong_duckling_tcp_checker_open_info`          | Gauge   | Connection is open if value 1 otherwise 0       |
+| Name                                             | Type    | Labels                                     | Description                                     |
+| ------------------------------------------------ | ------- | ------------------------------------------ | ----------------------------------------------- |
+| `strong_duckling_tcp_checker_checked_total`      | Counter | `address`, `port`, `name` (if set), `open` | Total number of checks performed on the address |
+| `strong_duckling_tcp_checker_connected_total`    | Counter | `address`, `port`, `name` (if set)         | Total number of changes to connected state      |
+| `strong_duckling_tcp_checker_disconnected_total` | Counter | `address`, `port`, `name` (if set)         | Total number of changes to disconnected state   |
+| `strong_duckling_tcp_checker_open_info`          | Gauge   | `address`, `port`, `name` (if set)         | Connection is open if value 1 otherwise 0       |
 
-All metrics contains the labels based on the configured `address`, `port` and optionally `name`.
+Here follows an example of a TCP check against a named endpoint `partner1` on IP `1.2.3.4` and port `4500`.
 
 ```
 # strong-duckling --listen=:9100 --tcp-checker partner1:1.2.3.4:4500

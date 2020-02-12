@@ -119,7 +119,7 @@ func NewPrometheusReporter(reg prometheus.Registerer, logger Logger) (*Prometheu
 				Subsystem: subSystemTcpChecker,
 				Name:      "checked_total",
 				Help:      "Total number of times the connection has been checked",
-			}, []string{"name", "address", "port"}),
+			}, []string{"name", "address", "port", "open"}),
 			open: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 				Namespace: namespace,
 				Subsystem: subSystemTcpChecker,
@@ -290,13 +290,14 @@ func (p *PrometheusReporter) Info(strongDucklingVersion string) {
 
 func (r *tcpChecker) ReportPortCheck(report tcpchecker.Report) {
 	labelValues := []string{report.Name, report.Address, fmt.Sprintf("%d", report.Port)}
-	r.checks.WithLabelValues(labelValues...).Inc()
 	if report.Open {
+		r.checks.WithLabelValues(append(labelValues, "true")...).Inc()
 		r.open.WithLabelValues(labelValues...).Set(1)
 		if r.previousOpenState == nil || *r.previousOpenState != report.Open {
 			r.connectedTotal.WithLabelValues(labelValues...).Add(1)
 		}
 	} else {
+		r.checks.WithLabelValues(append(labelValues, "false")...).Inc()
 		r.open.WithLabelValues(labelValues...).Set(0)
 		if r.previousOpenState == nil || *r.previousOpenState != report.Open {
 			r.disconectedTotal.WithLabelValues(labelValues...).Add(0)
