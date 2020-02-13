@@ -251,6 +251,7 @@ func NewPrometheusReporter(reg prometheus.Registerer, logger Logger) (*Prometheu
 		r.tcpChecker.open,
 		r.tcpChecker.connectedTotal,
 		r.tcpChecker.disconectedTotal,
+		r.tcpChecker.checks,
 		r.ikeSA.establishedSeconds,
 		r.ikeSA.packetsIn,
 		r.ikeSA.packetsOut,
