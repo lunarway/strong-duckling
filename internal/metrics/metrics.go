@@ -309,7 +309,7 @@ func (r *tcpChecker) ReportPortCheck(report tcpchecker.Report) {
 
 func (p *PrometheusReporter) IKESAStatus(ikeName string, conn vici.IKEConf, sa *vici.IkeSa) {
 	if sa == nil {
-		p.logger.Errorf("No SA for connecetion configuration: %#v", conn)
+		p.logger.Errorf("No SA for connection configuration: %#v", conn)
 		return
 	}
 	ikeSALabels := ikeSALabels{
