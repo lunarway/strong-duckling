@@ -49,7 +49,7 @@ func TestIKESAStatus_gauges(t *testing.T) {
 				return
 			}
 
-			p.IKESAStatus("", tc.conf, tc.sa)
+			p.StrongSwan().IKESAStatus("", tc.conf, tc.sa)
 
 			assert.Equal(t, tc.packetsIn, testutil.ToFloat64(p.ikeSA.packetsIn), "packets in not as expected")
 			assert.Equal(t, tc.packetsOut, testutil.ToFloat64(p.ikeSA.packetsOut), "packets out not as expected")
@@ -91,7 +91,7 @@ func TestIKESAStatus_installs(t *testing.T) {
 			}
 
 			for _, s := range tc.installTimeSeconds {
-				p.IKESAStatus("", vici.IKEConf{}, &vici.IkeSa{
+				p.StrongSwan().IKESAStatus("", vici.IKEConf{}, &vici.IkeSa{
 					ChildSAs: map[string]vici.ChildSA{
 						"net-0": vici.ChildSA{
 							InstallTimeSeconds: s,
@@ -177,7 +177,7 @@ strong_duckling_ike_sa_rekey_seconds_count{child_sa_name="",ike_sa_name="",local
 			}
 
 			for _, s := range tc.rekeySeconds {
-				p.IKESAStatus("", vici.IKEConf{
+				p.StrongSwan().IKESAStatus("", vici.IKEConf{
 					RekeyTimeSeconds: tc.connRekeySeconds,
 				}, &vici.IkeSa{
 					ChildSAs: map[string]vici.ChildSA{
@@ -249,7 +249,7 @@ func TestPrometheusReporter_maxValue(t *testing.T) {
 			var v float64
 			var ok bool
 			for _, s := range tc.values {
-				v, ok = p.maxValue("test", s)
+				v, ok = p.ikeSA.helper.maxValue("test", s)
 			}
 
 			assert.Equal(t, tc.ok, ok, "ok indication not as expected")
@@ -313,7 +313,7 @@ func TestPrometheusReporter_minValue(t *testing.T) {
 			var v float64
 			var ok bool
 			for _, s := range tc.values {
-				v, ok = p.minValue("test", s)
+				v, ok = p.ikeSA.helper.minValue("test", s)
 			}
 
 			assert.Equal(t, tc.ok, ok, "ok indication not as expected")
@@ -367,7 +367,7 @@ strong_duckling_ike_sa_packets_out_total{child_sa_name="net-1",ike_sa_name="gw-g
 			if !assert.NoError(t, err, "unexpected initialization error") {
 				return
 			}
-			p.IKESAStatus(tc.ikeName, tc.conf, tc.sa)
+			p.StrongSwan().IKESAStatus(tc.ikeName, tc.conf, tc.sa)
 			err = testutil.GatherAndCompare(reg, strings.NewReader(tc.output))
 			assert.NoError(t, err, "registered metrics not as expected")
 		})
