@@ -12,11 +12,17 @@ RUN \
   libsystemd-dev \
   wget \
   curl \
-  supervisor
+  supervisor \
+  git
 
 RUN curl -sL https://deb.nodesource.com/setup_12.x | bash - &&\
   apt-get install -y nodejs
 RUN npm install nodemon -g
+#RUN npm install gomplate -g
+
+RUN curl -LO https://github.com/hairyhenderson/gomplate/releases/download/$(curl -Lso /dev/null -w %{url_effective} https://github.com/hairyhenderson/gomplate/releases/latest | grep -o '[^/]*$')/gomplate_linux-amd64 &&\
+  chmod +x gomplate_linux-amd64 &&\
+  mv gomplate_linux-amd64 /usr/bin/gomplate
 
 RUN \
   wget https://download.strongswan.org/strongswan-$STRONGSWAN_VERSION.tar.gz &&\
