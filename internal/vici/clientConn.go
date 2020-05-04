@@ -53,7 +53,7 @@ func NewClientConnFromDefaultSocket() (*ClientConn, error) {
 func (c *ClientConn) Request(apiname string, concretePayload interface{}) (map[string]interface{}, error) {
 	var request map[string]interface{}
 	if concretePayload != nil {
-		err := convertToGeneral(concretePayload, request)
+		err := convertToGeneral(concretePayload, &request)
 		if err != nil {
 			return nil, fmt.Errorf("convert to general payload: %w", err)
 		}

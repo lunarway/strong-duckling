@@ -42,7 +42,7 @@ func (c *Client) NewConn() (conn *ClientConn, err error) {
 	return NewClientConn(conn1), nil
 }
 
-func (c *Client) ListSas(ike string, ike_id string) (sas []map[string]IkeSa, err error) {
+func (c *Client) ListSas(ike string, ike_id string) (sas map[string]IkeSa, err error) {
 	conn, err := c.NewConn()
 	if err != nil {
 		return nil, err
@@ -51,10 +51,10 @@ func (c *Client) ListSas(ike string, ike_id string) (sas []map[string]IkeSa, err
 	return conn.ListSas(ike, ike_id)
 }
 
-func (c *Client) ListAllVpnConnInfo() (list []VpnConnInfo, err error) {
+func (c *Client) ListAllVpnConnInfo() (list VpnConnInfo, err error) {
 	conn, err := c.NewConn()
 	if err != nil {
-		return nil, err
+		return VpnConnInfo{}, err
 	}
 	defer conn.Close()
 	return conn.ListAllVpnConnInfo()

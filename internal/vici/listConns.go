@@ -6,18 +6,20 @@ import (
 	"strings"
 )
 
-func (c *ClientConn) ListConns(ike string) ([]map[string]IKEConf, error) {
-	conns := []map[string]IKEConf{}
+func (c *ClientConn) ListConns(ike string) (map[string]IKEConf, error) {
+	conns := map[string]IKEConf{}
 	var eventErr error
 	var err error
 
 	err = c.RegisterEvent("list-conn", func(response map[string]interface{}) {
-		conn, err := mapConnections(response)
+		connsMap, err := mapConnections(response)
 		if err != nil {
 			eventErr = fmt.Errorf("list-conn event error: %w", err)
 			return
 		}
-		conns = append(conns, conn)
+		for ikeName, conn := range connsMap {
+			conns[ikeName] = conn
+		}
 	})
 	if err != nil {
 		return nil, fmt.Errorf("error registering list-conn event: %w", err)
