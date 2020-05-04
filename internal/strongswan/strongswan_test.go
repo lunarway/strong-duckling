@@ -11,18 +11,16 @@ import (
 func TestCollectSasStats(t *testing.T) {
 	tt := []struct {
 		name              string
-		connectionConfigs []map[string]vici.IKEConf
-		sas               []map[string]vici.IkeSa
+		connectionConfigs map[string]vici.IKEConf
+		sas               map[string]vici.IkeSa
 		conf              *vici.IKEConf
 		sa                *vici.IkeSa
 	}{
 		{
 			name: "connection missing from config",
-			connectionConfigs: []map[string]vici.IKEConf{
-				{
-					"gw-gw": vici.IKEConf{
-						Unique: "id-1",
-					},
+			connectionConfigs: map[string]vici.IKEConf{
+				"gw-gw": {
+					Unique: "id-1",
 				},
 			},
 			conf: &vici.IKEConf{
@@ -32,11 +30,9 @@ func TestCollectSasStats(t *testing.T) {
 		},
 		{
 			name: "connection missing from config",
-			connectionConfigs: []map[string]vici.IKEConf{
-				{
-					"gw-gw": vici.IKEConf{
-						Unique: "id-1",
-					},
+			connectionConfigs: map[string]vici.IKEConf{
+				"gw-gw": {
+					Unique: "id-1",
 				},
 			},
 			conf: &vici.IKEConf{
@@ -47,17 +43,17 @@ func TestCollectSasStats(t *testing.T) {
 	}
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			reporter := MockReporter{}
-			reporter.Test(t)
+			ikeSAStatusReceiver := MockIKESAStatusReceiver{}
+			ikeSAStatusReceiver.Test(t)
 			var reportedConf *vici.IKEConf
 			var reportedSA *vici.IkeSa
-			reporter.On("IKESAStatus", mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
-				conf, sa := args[1].(vici.IKEConf), args[2].(*vici.IkeSa)
-				reportedConf = &conf
-				reportedSA = sa
+			ikeSAStatusReceiver.On("IKESAStatus", mock.Anything).Run(func(args mock.Arguments) {
+				status := args[0].(IKESAStatus)
+				reportedConf = &status.Configuration
+				reportedSA = status.State
 			})
 
-			collectSasStats(tc.connectionConfigs, tc.sas, &reporter)
+			collectSasStats(tc.connectionConfigs, tc.sas, []IKESAStatusReceiver{&ikeSAStatusReceiver})
 
 			assert.Equal(t, tc.conf, reportedConf, "IKE Conf not as expected")
 			assert.Equal(t, tc.sa, reportedSA, "IKE SA not as expected")

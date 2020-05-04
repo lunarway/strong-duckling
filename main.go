@@ -36,11 +36,17 @@ func main() {
 	listenAddress := flags.Flag("listen", "Address on which to expose metrics.").String()
 	whoopingAddress := flags.Flag("whooping", "Address on which to start whooping.").String()
 	tcpCheckerAddresses := flags.Flag("tcp-checker", "TCP address to check. Supports <address>:<port> or <name>:<address>:<port>").Strings()
+	enableReinitiator := flags.Flag("enable-reinitiator", "Enables re-initiation of connections when expected Security Associations are missing").Bool()
 	log.AddFlags(flags)
 	flags.HelpFlag.Short('h')
 	flags.Version(version)
 	socket := flags.Flag("vici-socket", "VICI (charon.vici) socket to connect to. Usually /var/run/charon.vici").String()
 	kingpin.MustParse(flags.Parse(os.Args[1:]))
+
+	if *enableReinitiator && *socket == "" {
+		log.Errorf("--enable-reinitiator requires --vici-socket to be set up")
+		os.Exit(1)
+	}
 
 	whooper := whooping.Whooper{}
 
@@ -147,12 +153,22 @@ func main() {
 		}
 		defer conn.Close()
 		client := vici.NewClientConn(conn)
+		client.ReadTimeout = 60 * time.Second
 		defer client.Close()
+
+		ikeSAStatusReceivers := []strongswan.IKESAStatusReceiver{
+			prometheusReporter.StrongSwan(),
+		}
+
+		if *enableReinitiator {
+			ikeSAStatusReceivers = append(ikeSAStatusReceivers, strongswan.NewReinitiator(client, log.Base().With("name", "initiator")))
+		}
+
 		d := daemon.New(daemon.Configuration{
 			Reporter: prometheusReporter.Daemon(log.Base().With("name", "strongswan"), "strongswan"),
 			Interval: 2 * time.Second,
 			Tick: func() {
-				strongswan.Collect(client, prometheusReporter.StrongSwan())
+				strongswan.Collect(client, ikeSAStatusReceivers)
 			},
 		})
 

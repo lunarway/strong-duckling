@@ -37,7 +37,7 @@ func (pr *PrometheusReporter) TcpChecker() tcpchecker.Reporter {
 	return pr.tcpChecker
 }
 
-func (pr *PrometheusReporter) StrongSwan() strongswan.Reporter {
+func (pr *PrometheusReporter) StrongSwan() strongswan.IKESAStatusReceiver {
 	return pr.ikeSA
 }
 

@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/lunarway/strong-duckling/internal/strongswan"
 	"github.com/lunarway/strong-duckling/internal/tcpchecker"
 	"github.com/lunarway/strong-duckling/internal/test"
 	"github.com/lunarway/strong-duckling/internal/vici"
@@ -26,7 +27,7 @@ func TestIKESAStatus_gauges(t *testing.T) {
 			conf: vici.IKEConf{},
 			sa: &vici.IkeSa{
 				ChildSAs: map[string]vici.ChildSA{
-					"net-1": vici.ChildSA{
+					"net-1": {
 						PacketsIn:  "1",
 						PacketsOut: "2",
 						BytesIn:    "3",
@@ -49,7 +50,11 @@ func TestIKESAStatus_gauges(t *testing.T) {
 				return
 			}
 
-			p.StrongSwan().IKESAStatus("", tc.conf, tc.sa)
+			p.StrongSwan().IKESAStatus(strongswan.IKESAStatus{
+				Name:          "",
+				Configuration: tc.conf,
+				State:         tc.sa,
+			})
 
 			assert.Equal(t, tc.packetsIn, testutil.ToFloat64(p.ikeSA.packetsIn), "packets in not as expected")
 			assert.Equal(t, tc.packetsOut, testutil.ToFloat64(p.ikeSA.packetsOut), "packets out not as expected")
@@ -91,10 +96,14 @@ func TestIKESAStatus_installs(t *testing.T) {
 			}
 
 			for _, s := range tc.installTimeSeconds {
-				p.StrongSwan().IKESAStatus("", vici.IKEConf{}, &vici.IkeSa{
-					ChildSAs: map[string]vici.ChildSA{
-						"net-0": vici.ChildSA{
-							InstallTimeSeconds: s,
+				p.StrongSwan().IKESAStatus(strongswan.IKESAStatus{
+					Name:          "",
+					Configuration: vici.IKEConf{},
+					State: &vici.IkeSa{
+						ChildSAs: map[string]vici.ChildSA{
+							"net-0": {
+								InstallTimeSeconds: s,
+							},
 						},
 					},
 				})
@@ -177,12 +186,16 @@ strong_duckling_ike_sa_rekey_seconds_count{child_sa_name="",ike_sa_name="",local
 			}
 
 			for _, s := range tc.rekeySeconds {
-				p.StrongSwan().IKESAStatus("", vici.IKEConf{
-					RekeyTimeSeconds: tc.connRekeySeconds,
-				}, &vici.IkeSa{
-					ChildSAs: map[string]vici.ChildSA{
-						"net-0": vici.ChildSA{
-							RekeyTimeSeconds: s,
+				p.StrongSwan().IKESAStatus(strongswan.IKESAStatus{
+					Name: "",
+					Configuration: vici.IKEConf{
+						RekeyTimeSeconds: tc.connRekeySeconds,
+					},
+					State: &vici.IkeSa{
+						ChildSAs: map[string]vici.ChildSA{
+							"net-0": {
+								RekeyTimeSeconds: s,
+							},
 						},
 					},
 				})
@@ -338,7 +351,7 @@ func TestIKESAStatus_labels(t *testing.T) {
 				LocalHost:  "localhost",
 				RemoteHost: "remotehost",
 				ChildSAs: map[string]vici.ChildSA{
-					"net-1-0": vici.ChildSA{
+					"net-1-0": {
 						Name:                   "net-1",
 						LocalTrafficSelectors:  []string{"local1", "local2"},
 						RemoteTrafficSelectors: []string{"remote1", "remote2"},
@@ -367,7 +380,11 @@ strong_duckling_ike_sa_packets_out_total{child_sa_name="net-1",ike_sa_name="gw-g
 			if !assert.NoError(t, err, "unexpected initialization error") {
 				return
 			}
-			p.StrongSwan().IKESAStatus(tc.ikeName, tc.conf, tc.sa)
+			p.StrongSwan().IKESAStatus(strongswan.IKESAStatus{
+				Name:          tc.ikeName,
+				Configuration: tc.conf,
+				State:         tc.sa,
+			})
 			err = testutil.GatherAndCompare(reg, strings.NewReader(tc.output))
 			assert.NoError(t, err, "registered metrics not as expected")
 		})

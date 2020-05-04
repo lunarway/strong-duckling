@@ -1,18 +1,18 @@
 package metrics
 
 import (
-	"strings"
 	"strconv"
+	"strings"
 
-	"github.com/prometheus/client_golang/prometheus"
+	"github.com/lunarway/strong-duckling/internal/strongswan"
 	"github.com/lunarway/strong-duckling/internal/vici"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/log"
 )
 
 const (
 	subSystemIKE = "ike_sa"
 )
-
 
 type ikeSA struct {
 	logger log.Logger
@@ -141,7 +141,7 @@ func newIkeSA(logger log.Logger) *ikeSA {
 }
 
 func (i *ikeSA) getCollectors() []prometheus.Collector {
-	return []prometheus.Collector {
+	return []prometheus.Collector{
 		i.establishedSeconds,
 		i.packetsIn,
 		i.packetsOut,
@@ -157,19 +157,19 @@ func (i *ikeSA) getCollectors() []prometheus.Collector {
 	}
 }
 
-func (p *ikeSA) IKESAStatus(ikeName string, conn vici.IKEConf, sa *vici.IkeSa) {
-	if sa == nil {
-		p.logger.Errorf("No SA for connecetion configuration: %#v", conn)
+func (p *ikeSA) IKESAStatus(ikeSAStatus strongswan.IKESAStatus) {
+	if ikeSAStatus.State == nil {
+		p.logger.Errorf("No SA for connection configuration: %#v", ikeSAStatus.Configuration)
 		return
 	}
 	ikeSALabels := ikeSALabels{
-		name:         ikeName,
-		localPeerIP:  sa.LocalHost,
-		remotePeerIP: sa.RemoteHost,
+		name:         ikeSAStatus.Name,
+		localPeerIP:  ikeSAStatus.State.LocalHost,
+		remotePeerIP: ikeSAStatus.State.RemoteHost,
 	}
-	p.helper.setGaugeByMax(p.establishedSeconds, sa.EstablishedSeconds, "EstablishedSeconds", ikeSALabels)
-	p.logger.Infof("prometheusReporter: IKESAStatus: IKE_SA state: %v", sa.State)
-	for _, child := range sa.ChildSAs {
+	p.helper.setGaugeByMax(p.establishedSeconds, ikeSAStatus.State.EstablishedSeconds, "EstablishedSeconds", ikeSALabels)
+	p.logger.Infof("prometheusReporter: IKESAStatus: IKE_SA state: %v", ikeSAStatus.State.State)
+	for _, child := range ikeSAStatus.State.ChildSAs {
 		labels := childSALabels{
 			ikeSALabels:   ikeSALabels,
 			childSAName:   child.Name,
@@ -186,7 +186,7 @@ func (p *ikeSA) IKESAStatus(ikeName string, conn vici.IKEConf, sa *vici.IkeSa) {
 		p.helper.setHistogramByMax(p.lastPacketOutSeconds, child.LastPacketOutSeconds, "LastPacketOutSeconds", labels)
 		p.helper.setHistogramByMin(p.rekeySeconds, child.RekeyTimeSeconds, "RekeyTimeSeconds", labels)
 		p.helper.setHistogramByMax(p.lifeTimeSeconds, child.LifeTimeSeconds, "LifeTimeSeconds", labels)
-		p.setRekeySeconds(conn, child, labels)
+		p.setRekeySeconds(ikeSAStatus.Configuration, child, labels)
 	}
 }
 
