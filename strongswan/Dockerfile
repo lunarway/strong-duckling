@@ -1,5 +1,5 @@
 FROM docker.io/library/ubuntu:16.04
-ARG STRONGSWAN_VERSION=5.8.1
+ARG STRONGSWAN_VERSION=5.8.4
 
 RUN \
   apt-get update &&\
