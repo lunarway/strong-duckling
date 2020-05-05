@@ -146,6 +146,24 @@ func main() {
 	}()
 
 	if len(*socket) != 0 {
+		ikeSAStatusReceivers := []strongswan.IKESAStatusReceiver{
+			prometheusReporter.StrongSwan(),
+		}
+
+		if *enableReinitiator {
+			reinitiatorConn, err := net.Dial("unix", *socket)
+			if err != nil {
+				log.Errorf("Failed to establish socket connection to vici: %v", err)
+				os.Exit(1)
+			}
+			defer reinitiatorConn.Close()
+			reinitiatorClient := vici.NewClientConn(reinitiatorConn)
+			reinitiatorClient.ReadTimeout = 5 * time.Minute
+			defer reinitiatorClient.Close()
+
+			ikeSAStatusReceivers = append(ikeSAStatusReceivers, strongswan.NewReinitiator(reinitiatorClient, log.Base().With("name", "reinitiator")))
+		}
+
 		conn, err := net.Dial("unix", *socket)
 		if err != nil {
 			log.Errorf("Failed to establish socket connection to vici: %v", err)
@@ -155,14 +173,6 @@ func main() {
 		client := vici.NewClientConn(conn)
 		client.ReadTimeout = 60 * time.Second
 		defer client.Close()
-
-		ikeSAStatusReceivers := []strongswan.IKESAStatusReceiver{
-			prometheusReporter.StrongSwan(),
-		}
-
-		if *enableReinitiator {
-			ikeSAStatusReceivers = append(ikeSAStatusReceivers, strongswan.NewReinitiator(client, log.Base().With("name", "initiator")))
-		}
 
 		d := daemon.New(daemon.Configuration{
 			Reporter: prometheusReporter.Daemon(log.Base().With("name", "strongswan"), "strongswan"),
