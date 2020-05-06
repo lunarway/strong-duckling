@@ -79,18 +79,15 @@ func mapToIKESAStatus(ikeName string, config vici.IKEConf, ikeSA *vici.IkeSa) IK
 		childNames[childName] = struct{}{}
 	}
 	if ikeSA != nil {
-		for childName := range ikeSA.ChildSAs {
-			childNames[childName] = struct{}{}
+		for _, childSA := range ikeSA.ChildSAs {
+			childNames[childSA.Name] = struct{}{}
 		}
 	}
 
 	for childName := range childNames {
 		childConfig, childConfigFound := config.Children[childName]
-		var childSA vici.ChildSA
-		childSAFound := false
-		if ikeSA != nil {
-			childSA, childSAFound = ikeSA.ChildSAs[childName]
-		}
+		childSA, childSAFound := findMatchingChildSA(ikeSA, childName)
+
 		switch {
 		case childConfigFound && childSAFound:
 			status.ChildSA = append(status.ChildSA, ChildSAStatus{
@@ -108,4 +105,17 @@ func mapToIKESAStatus(ikeName string, config vici.IKEConf, ikeSA *vici.IkeSa) IK
 		}
 	}
 	return status
+}
+
+func findMatchingChildSA(ikeSA *vici.IkeSa, childName string) (vici.ChildSA, bool) {
+	if ikeSA == nil {
+		return vici.ChildSA{}, false
+	}
+
+	for _, c := range ikeSA.ChildSAs {
+		if c.Name == childName {
+			return c, true
+		}
+	}
+	return vici.ChildSA{}, false
 }

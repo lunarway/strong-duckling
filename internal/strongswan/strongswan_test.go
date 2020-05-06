@@ -53,7 +53,9 @@ func TestCollectSasStats(t *testing.T) {
 			sas: map[string]vici.IkeSa{
 				"gw-gw": {
 					ChildSAs: map[string]vici.ChildSA{
-						"net-net-0": {},
+						"net-net-0-35": {
+							Name: "net-net-0",
+						},
 					},
 				},
 			},
@@ -68,13 +70,17 @@ func TestCollectSasStats(t *testing.T) {
 					},
 					State: &vici.IkeSa{
 						ChildSAs: map[string]vici.ChildSA{
-							"net-net-0": {},
+							"net-net-0-35": {
+								Name: "net-net-0",
+							},
 						},
 					},
 					ChildSA: []ChildSAStatus{
 						{
-							Name:  "net-net-0",
-							State: &vici.ChildSA{},
+							Name: "net-net-0",
+							State: &vici.ChildSA{
+								Name: "net-net-0",
+							},
 						},
 					},
 				},
