@@ -13,50 +13,87 @@ func TestCollectSasStats(t *testing.T) {
 		name              string
 		connectionConfigs map[string]vici.IKEConf
 		sas               map[string]vici.IkeSa
-		conf              *vici.IKEConf
-		sa                *vici.IkeSa
+		expected          []IKESAStatus
 	}{
 		{
 			name: "connection missing from config",
 			connectionConfigs: map[string]vici.IKEConf{
 				"gw-gw": {
 					Unique: "id-1",
+					Children: map[string]vici.ChildSAConf{
+						"net-net-0": {},
+					},
 				},
 			},
-			conf: &vici.IKEConf{
-				Unique: "id-1",
+			expected: []IKESAStatus{
+				{
+					Name: "gw-gw",
+					Configuration: vici.IKEConf{
+						Unique: "id-1",
+						Children: map[string]vici.ChildSAConf{
+							"net-net-0": {},
+						},
+					},
+					ChildSA: []ChildSAStatus{
+						{Name: "net-net-0"},
+					},
+				},
 			},
-			sa: nil,
 		},
 		{
-			name: "connection missing from config",
+			name: "maps correctly",
 			connectionConfigs: map[string]vici.IKEConf{
 				"gw-gw": {
 					Unique: "id-1",
+					Children: map[string]vici.ChildSAConf{
+						"net-net-0": {},
+					},
 				},
 			},
-			conf: &vici.IKEConf{
-				Unique: "id-1",
+			sas: map[string]vici.IkeSa{
+				"gw-gw": {
+					ChildSAs: map[string]vici.ChildSA{
+						"net-net-0": {},
+					},
+				},
 			},
-			sa: nil,
+			expected: []IKESAStatus{
+				{
+					Name: "gw-gw",
+					Configuration: vici.IKEConf{
+						Unique: "id-1",
+						Children: map[string]vici.ChildSAConf{
+							"net-net-0": {},
+						},
+					},
+					State: &vici.IkeSa{
+						ChildSAs: map[string]vici.ChildSA{
+							"net-net-0": {},
+						},
+					},
+					ChildSA: []ChildSAStatus{
+						{
+							Name:  "net-net-0",
+							State: &vici.ChildSA{},
+						},
+					},
+				},
+			},
 		},
 	}
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			ikeSAStatusReceiver := MockIKESAStatusReceiver{}
 			ikeSAStatusReceiver.Test(t)
-			var reportedConf *vici.IKEConf
-			var reportedSA *vici.IkeSa
+			var actualStatuses []IKESAStatus
 			ikeSAStatusReceiver.On("IKESAStatus", mock.Anything).Run(func(args mock.Arguments) {
 				status := args[0].(IKESAStatus)
-				reportedConf = &status.Configuration
-				reportedSA = status.State
+				actualStatuses = append(actualStatuses, status)
 			})
 
 			collectSasStats(tc.connectionConfigs, tc.sas, []IKESAStatusReceiver{&ikeSAStatusReceiver})
 
-			assert.Equal(t, tc.conf, reportedConf, "IKE Conf not as expected")
-			assert.Equal(t, tc.sa, reportedSA, "IKE SA not as expected")
+			assert.Equal(t, tc.expected, actualStatuses, "IKESAStatuses not as expected")
 		})
 	}
 }

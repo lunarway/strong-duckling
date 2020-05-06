@@ -6,7 +6,7 @@ import (
 
 // Initiate is used to initiate an SA. This is the
 // equivalent of `swanctl --initiate -c childname`
-func (c *ClientConn) Initiate(child string, ike string, logger func(line string)) (err error) {
+func (c *ClientConn) Initiate(child string, ike string, logger func(fields map[string]interface{})) (err error) {
 	request := map[string]interface{}{}
 	if child != "" {
 		request["child"] = child
@@ -16,7 +16,7 @@ func (c *ClientConn) Initiate(child string, ike string, logger func(line string)
 	}
 
 	err = c.RegisterEvent("control-log", func(response map[string]interface{}) {
-		logger(fmt.Sprintf("%#v", response))
+		logger(response)
 	})
 	if err != nil {
 		return fmt.Errorf("error registering control-log event: %w", err)
