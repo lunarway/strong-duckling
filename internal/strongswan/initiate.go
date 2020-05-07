@@ -43,12 +43,17 @@ func (i *Reinitiator) IKESAStatus(ikeSAStatus IKESAStatus) {
 			// initiation started
 			i.currentInitiate = initiate
 		default:
-			if loggingTime, ok := i.loggingTime[initiate.getFullName()]; !ok || time.Now().Sub(loggingTime) >= 30*time.Second {
+			if i.shouldLog(initiate) {
 				log.Infof("Skip initiating Child SA %s, because Child SA %s is being initiated", initiate.getFullName(), i.currentInitiate.getFullName())
 				i.loggingTime[initiate.getFullName()] = time.Now()
 			}
 		}
 	}
+}
+
+func (i *Reinitiator) shouldLog(initiate initiateData) bool {
+	loggingTime, ok := i.loggingTime[initiate.getFullName()]
+	return !ok || time.Now().Sub(loggingTime) >= 30*time.Second
 }
 
 func initiateWorker(logger log.Logger, client *vici.ClientConn, workerChannel chan initiateData) {
