@@ -31,22 +31,22 @@ func NewReinitiator(client *vici.ClientConn, logger log.Logger) *Reinitiator {
 
 func (i *Reinitiator) IKESAStatus(ikeSAStatus IKESAStatus) {
 	for _, childSA := range ikeSAStatus.ChildSA {
-		if childSA.State == nil {
-			initiate := initiateData{
-				IKEName:   ikeSAStatus.Name,
-				ChildName: childSA.Name,
+		if childSA.State != nil {
+			continue
+		}
+		initiate := initiateData{
+			IKEName:   ikeSAStatus.Name,
+			ChildName: childSA.Name,
+		}
+		select {
+		case i.initiateWorkerChannel <- initiate:
+			// initiation started
+			i.currentInitiate = initiate
+		default:
+			if loggingTime, ok := i.loggingTime[initiate.getFullName()]; !ok || time.Now().Sub(loggingTime) >= 30*time.Second {
+				log.Infof("Skip initiating Child SA %s, because Child SA %s is being initiated", initiate.getFullName(), i.currentInitiate.getFullName())
+				i.loggingTime[initiate.getFullName()] = time.Now()
 			}
-			select {
-			case i.initiateWorkerChannel <- initiate:
-				// initiation started
-				i.currentInitiate = initiate
-			default:
-				if loggingTime, ok := i.loggingTime[initiate.getFullName()]; !ok || time.Now().Sub(loggingTime) >= 30*time.Second {
-					log.Infof("Skip initiating Child SA %s, because Child SA %s is being initiated", initiate.getFullName(), i.currentInitiate.getFullName())
-					i.loggingTime[initiate.getFullName()] = time.Now()
-				}
-			}
-
 		}
 	}
 }
