@@ -42,6 +42,9 @@ func (p *helper) setCounterByMax(c *prometheus.CounterVec, value, name string, l
 }
 
 func (p *helper) setGaugeByMax(g *prometheus.GaugeVec, value, name string, labels ikeSALabels) {
+	if value == "" {
+		return
+	}
 	max, ok := p.maxValue(name, value)
 	if !ok {
 		return
@@ -50,6 +53,9 @@ func (p *helper) setGaugeByMax(g *prometheus.GaugeVec, value, name string, label
 }
 
 func (p *helper) setHistogramByMax(h *prometheus.HistogramVec, value, name string, labels childSALabels) {
+	if value == "" {
+		return
+	}
 	max, ok := p.maxValue(name, value)
 	if !ok {
 		return

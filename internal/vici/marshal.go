@@ -5,12 +5,12 @@ import (
 )
 
 // convertToGeneral converts a concrete type instance to a untype general type.
-func convertToGeneral(concrete interface{}, general map[string]interface{}) error {
+func convertToGeneral(concrete interface{}, general interface{}) error {
 	b, err := json.Marshal(concrete)
 	if err != nil {
 		return err
 	}
-	return json.Unmarshal(b, &general)
+	return json.Unmarshal(b, general)
 }
 
 // convertFromGeneral converts a general type instance to a concrete type.

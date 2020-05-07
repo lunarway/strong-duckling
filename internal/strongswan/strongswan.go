@@ -7,11 +7,7 @@ import (
 	"github.com/prometheus/common/log"
 )
 
-type Reporter interface {
-	IKESAStatus(ikeName string, conn vici.IKEConf, sa *vici.IkeSa)
-}
-
-func Collect(client *vici.ClientConn, reporter Reporter) {
+func Collect(client *vici.ClientConn, ikeSAStatusReceivers []IKESAStatusReceiver) {
 	conns, err := connections(client)
 	if err != nil {
 		log.Errorf("Failed to get strongswan connections: %v", err)
@@ -22,10 +18,10 @@ func Collect(client *vici.ClientConn, reporter Reporter) {
 		log.Errorf("Failed to get strongswan sas: %v", err)
 		return
 	}
-	collectSasStats(conns, sas, reporter)
+	collectSasStats(conns, sas, ikeSAStatusReceivers)
 }
 
-func connections(client *vici.ClientConn) ([]map[string]vici.IKEConf, error) {
+func connections(client *vici.ClientConn) (map[string]vici.IKEConf, error) {
 	connList, err := client.ListConns("")
 	if err != nil {
 		return nil, fmt.Errorf("list vici conns: %w", err)
@@ -33,7 +29,7 @@ func connections(client *vici.ClientConn) ([]map[string]vici.IKEConf, error) {
 	return connList, nil
 }
 
-func ikeSas(client *vici.ClientConn) ([]map[string]vici.IkeSa, error) {
+func ikeSas(client *vici.ClientConn) (map[string]vici.IkeSa, error) {
 	sasList, err := client.ListSas("", "")
 	if err != nil {
 		return nil, fmt.Errorf("list vici sas: %w", err)
@@ -41,38 +37,85 @@ func ikeSas(client *vici.ClientConn) ([]map[string]vici.IkeSa, error) {
 	return sasList, nil
 }
 
-func collectSasStats(configs []map[string]vici.IKEConf, sas []map[string]vici.IkeSa, reporter Reporter) {
-	/*
-		if connection is configured and ikesa is missing somethings wrong, so we
-		track the expected connections and the actual ones and can the report if
-		something is missing after looping through the child SAs.
-	*/
-	expectedConnections := make(map[string]vici.IKEConf)
-	for _, conf := range configs {
-		for name := range conf {
-			expectedConnections[name] = conf[name]
+func collectSasStats(configs map[string]vici.IKEConf, sas map[string]vici.IkeSa, ikeSAStatusReceivers []IKESAStatusReceiver) {
+	ikeNames := make(map[string]struct{})
+	for ikeName := range configs {
+		ikeNames[ikeName] = struct{}{}
+	}
+	for ikeName := range sas {
+		ikeNames[ikeName] = struct{}{}
+	}
+
+	var ikeSAStatuses []IKESAStatus
+	for ikeName := range ikeNames {
+		config, configFound := configs[ikeName]
+		ikeSA, ikeSAFound := sas[ikeName]
+		switch {
+		case configFound && ikeSAFound:
+			ikeSAStatuses = append(ikeSAStatuses, mapToIKESAStatus(ikeName, config, &ikeSA))
+		case configFound && !ikeSAFound:
+			ikeSAStatuses = append(ikeSAStatuses, mapToIKESAStatus(ikeName, config, nil))
+		case !configFound && ikeSAFound:
+			log.Errorf("Unexpected IKE_SA Status for IKE Name %s: %#v", ikeName, ikeSA)
 		}
 	}
 
-	for _, sa := range sas {
-		for ikeName, ikeSa := range sa {
-			conf, ok := expectedConnections[ikeName]
-			if !ok {
-				log.Errorf("Unexpected SA: %s: %#v", ikeName, ikeSa)
-				continue
-			}
-			log.With("conf", conf).
-				With("sa", ikeSa).
-				With("ikeName", ikeName).
-				Infof("Reporting on ike name '%s'", ikeName)
-			reporter.IKESAStatus(ikeName, conf, &ikeSa)
-			delete(expectedConnections, ikeName)
+	for _, ikeSAStatus := range ikeSAStatuses {
+		for _, reporter := range ikeSAStatusReceivers {
+			reporter.IKESAStatus(ikeSAStatus)
 		}
 	}
-	for ikeName, conf := range expectedConnections {
-		log.With("conf", conf).
-			With("ikeName", ikeName).
-			Infof("Reporting config without active SAs on '%s'", ikeName)
-		reporter.IKESAStatus(ikeName, conf, nil)
+}
+
+func mapToIKESAStatus(ikeName string, config vici.IKEConf, ikeSA *vici.IkeSa) IKESAStatus {
+	status := IKESAStatus{
+		Name:          ikeName,
+		Configuration: config,
+		State:         ikeSA,
 	}
+
+	childNames := make(map[string]struct{})
+	for childName := range config.Children {
+		childNames[childName] = struct{}{}
+	}
+	if ikeSA != nil {
+		for _, childSA := range ikeSA.ChildSAs {
+			childNames[childSA.Name] = struct{}{}
+		}
+	}
+
+	for childName := range childNames {
+		childConfig, childConfigFound := config.Children[childName]
+		childSA, childSAFound := findMatchingChildSA(ikeSA, childName)
+
+		switch {
+		case childConfigFound && childSAFound:
+			status.ChildSA = append(status.ChildSA, ChildSAStatus{
+				Name:          childName,
+				Configuration: childConfig,
+				State:         &childSA,
+			})
+		case childConfigFound && !childSAFound:
+			status.ChildSA = append(status.ChildSA, ChildSAStatus{
+				Name:          childName,
+				Configuration: childConfig,
+			})
+		case !childConfigFound && childSAFound:
+			log.Errorf("Unexpected CHILD_SA Status for IKE Name %s and Child SA Name %s: %#v", ikeName, childName, ikeSA)
+		}
+	}
+	return status
+}
+
+func findMatchingChildSA(ikeSA *vici.IkeSa, childName string) (vici.ChildSA, bool) {
+	if ikeSA == nil {
+		return vici.ChildSA{}, false
+	}
+
+	for _, c := range ikeSA.ChildSAs {
+		if c.Name == childName {
+			return c, true
+		}
+	}
+	return vici.ChildSA{}, false
 }

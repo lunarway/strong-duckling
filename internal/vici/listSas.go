@@ -133,18 +133,20 @@ func (s *ChildSA) GetBytesOut() uint64 {
 // To be simple, list all clients that are connecting to this server .
 // A client is a sa.
 // Lists currently active IKE_SAs
-func (c *ClientConn) ListSas(ike string, ike_id string) ([]map[string]IkeSa, error) {
-	sas := []map[string]IkeSa{}
+func (c *ClientConn) ListSas(ike string, ike_id string) (map[string]IkeSa, error) {
+	sas := map[string]IkeSa{}
 	var eventErr error
 	//register event
 	err := c.RegisterEvent("list-sa", func(response map[string]interface{}) {
-		sa := &map[string]IkeSa{}
-		err := convertFromGeneral(response, sa)
+		sa := map[string]IkeSa{}
+		err := convertFromGeneral(response, &sa)
 		if err != nil {
 			eventErr = err
 			return
 		}
-		sas = append(sas, *sa)
+		for ikeName, ikeSA := range sa {
+			sas[ikeName] = ikeSA
+		}
 	})
 	if err != nil {
 		return nil, err
@@ -191,28 +193,24 @@ func (c *VpnConnInfo) GuessUserName() string {
 
 // a helper method to avoid complex data struct in ListSas
 // if it only have one child_sas ,it will put it into info.ChildSAs
-func (c *ClientConn) ListAllVpnConnInfo() ([]VpnConnInfo, error) {
-	sasList, err := c.ListSas("", "")
+func (c *ClientConn) ListAllVpnConnInfo() (VpnConnInfo, error) {
+	sas, err := c.ListSas("", "")
 	if err != nil {
-		return nil, err
+		return VpnConnInfo{}, err
 	}
-	list := make([]VpnConnInfo, len(sasList))
-	for i, sa := range sasList {
-		info := VpnConnInfo{}
-		for ikeSaName, ikeSa := range sa {
-			info.IkeSaName = ikeSaName
-			info.IkeSa = ikeSa
-			for childSaName, childSa := range ikeSa.ChildSAs {
-				info.ChildSaName = childSaName
-				info.ChildSA = childSa
-				break
-			}
+	info := VpnConnInfo{}
+	for ikeSaName, ikeSa := range sas {
+		info.IkeSaName = ikeSaName
+		info.IkeSa = ikeSa
+		for childSaName, childSa := range ikeSa.ChildSAs {
+			info.ChildSaName = childSaName
+			info.ChildSA = childSa
 			break
 		}
-		if len(info.IkeSa.ChildSAs) == 1 {
-			info.IkeSa.ChildSAs = nil
-		}
-		list[i] = info
+		break
 	}
-	return list, nil
+	if len(info.IkeSa.ChildSAs) == 1 {
+		info.IkeSa.ChildSAs = nil
+	}
+	return info, nil
 }
