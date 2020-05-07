@@ -15,6 +15,17 @@ func (c *ClientConn) Initiate(child string, ike string, logger func(fields map[s
 		request["ike"] = ike
 	}
 
+	defer func() {
+		unregisterErr := c.UnregisterEvent("control-log")
+		if unregisterErr != nil {
+			if err == nil {
+				err = unregisterErr
+				return
+			}
+			err = fmt.Errorf("unregister control-log failed: %v: %w", unregisterErr, err)
+		}
+	}()
+
 	err = c.RegisterEvent("control-log", func(response map[string]interface{}) {
 		logger(response)
 	})
@@ -23,20 +34,8 @@ func (c *ClientConn) Initiate(child string, ike string, logger func(fields map[s
 	}
 
 	msg, err := c.Request("initiate", request)
-	if err != nil {
-		_ = c.UnregisterEvent("control-log")
-		return err
-	}
 	if msg["success"] != "yes" {
-		err = c.UnregisterEvent("control-log")
-		if err != nil {
-			return fmt.Errorf("error unregistering control-log event: %w", err)
-		}
 		return fmt.Errorf("initiate unsuccessful: %v", msg["errmsg"])
-	}
-	err = c.UnregisterEvent("control-log")
-	if err != nil {
-		return fmt.Errorf("error unregistering control-log event: %w", err)
 	}
 	return nil
 }
