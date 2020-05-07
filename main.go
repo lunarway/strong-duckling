@@ -43,7 +43,7 @@ func main() {
 	socket := flags.Flag("vici-socket", "VICI (charon.vici) socket to connect to. Usually /var/run/charon.vici").String()
 	kingpin.MustParse(flags.Parse(os.Args[1:]))
 
-	if *enableReinitiator && *socket == "" {
+	if *enableReinitiator && len(*socket) == 0 {
 		log.Errorf("--enable-reinitiator requires --vici-socket to be set up")
 		os.Exit(1)
 	}
