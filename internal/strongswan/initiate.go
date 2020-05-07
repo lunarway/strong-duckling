@@ -39,6 +39,7 @@ func (i *Reinitiator) IKESAStatus(ikeSAStatus IKESAStatus) {
 			select {
 			case i.initiateWorkerChannel <- initiate:
 				// initiation started
+				i.currentInitiate = initiate
 			default:
 				if loggingTime, ok := i.loggingTime[initiate.getFullName()]; !ok || time.Now().Sub(loggingTime) >= 30*time.Second {
 					log.Infof("Skip initiating Child SA %s, because Child SA %s is being initiated", initiate.getFullName(), i.currentInitiate.getFullName())
