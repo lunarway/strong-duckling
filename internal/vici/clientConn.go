@@ -41,15 +41,6 @@ func NewClientConn(conn net.Conn) *ClientConn {
 	return client
 }
 
-// it dial from unix:///var/run/charon.vici
-func NewClientConnFromDefaultSocket() (*ClientConn, error) {
-	conn, err := net.Dial("unix", "/var/run/charon.vici")
-	if err != nil {
-		return nil, err
-	}
-	return NewClientConn(conn), nil
-}
-
 func (c *ClientConn) Request(apiname string, concretePayload interface{}) (map[string]interface{}, error) {
 	var request map[string]interface{}
 	if concretePayload != nil {
