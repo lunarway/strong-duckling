@@ -1,7 +1,7 @@
 language: go
 
 go:
-  - "1.16.0"
+  - "1.16"
 
 script: |
   echo "Build strong-duckling" &&
