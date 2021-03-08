@@ -2,7 +2,6 @@ package vici
 
 import (
 	"fmt"
-	"io"
 	"net"
 	"time"
 )
@@ -17,7 +16,6 @@ type ClientConn struct {
 	conn          net.Conn
 	responseChan  chan segment
 	eventHandlers map[string]func(response map[string]interface{})
-	lastError     error
 
 	// ReadTimeout specifies a time limit for requests made
 	// by this client.
@@ -26,7 +24,6 @@ type ClientConn struct {
 
 func (c *ClientConn) Close() error {
 	close(c.responseChan)
-	c.lastError = io.ErrClosedPipe
 	return c.conn.Close()
 }
 
@@ -79,9 +76,9 @@ func (c *ClientConn) Request(apiname string, concretePayload interface{}) (map[s
 		return nil, fmt.Errorf("writing segment: %w", err)
 	}
 
-	outMsg := c.readResponse()
-	if c.lastError != nil {
-		return nil, fmt.Errorf("read response: %w", c.lastError)
+	outMsg, err := c.readResponse()
+	if err != nil {
+		return nil, fmt.Errorf("read response: %w", err)
 	}
 	if outMsg.typ != stCMD_RESPONSE {
 		return nil, fmt.Errorf("[%s] response error %d", apiname, outMsg.typ)
@@ -89,15 +86,12 @@ func (c *ClientConn) Request(apiname string, concretePayload interface{}) (map[s
 	return outMsg.msg, nil
 }
 
-func (c *ClientConn) readResponse() segment {
+func (c *ClientConn) readResponse() (segment, error) {
 	select {
 	case outMsg := <-c.responseChan:
-		return outMsg
+		return outMsg, nil
 	case <-time.After(c.ReadTimeout):
-		if c.lastError == nil {
-			c.lastError = fmt.Errorf("timeout waiting for message response")
-		}
-		return segment{}
+		return segment{}, fmt.Errorf("timeout waiting for message response")
 	}
 }
 
@@ -114,10 +108,10 @@ func (c *ClientConn) RegisterEvent(name string, handler func(response map[string
 		delete(c.eventHandlers, name)
 		return fmt.Errorf("write segment: %w", err)
 	}
-	outMsg := c.readResponse()
-	if c.lastError != nil {
+	outMsg, err := c.readResponse()
+	if err != nil {
 		delete(c.eventHandlers, name)
-		return fmt.Errorf("read response: %w", c.lastError)
+		return fmt.Errorf("read response: %w", err)
 	}
 
 	if outMsg.typ != stEVENT_CONFIRM {
@@ -135,9 +129,9 @@ func (c *ClientConn) UnregisterEvent(name string) error {
 	if err != nil {
 		return fmt.Errorf("write segment: %w", err)
 	}
-	outMsg := c.readResponse()
-	if c.lastError != nil {
-		return fmt.Errorf("read response: %w", c.lastError)
+	outMsg, err := c.readResponse()
+	if err != nil {
+		return fmt.Errorf("read response: %w", err)
 	}
 
 	if outMsg.typ != stEVENT_CONFIRM {
