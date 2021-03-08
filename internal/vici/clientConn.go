@@ -37,8 +37,29 @@ func NewClientConn(conn net.Conn) *ClientConn {
 		eventHandlers: map[string]func(response map[string]interface{}){},
 		ReadTimeout:   DefaultReadTimeout,
 	}
-	go client.readThread()
 	return client
+}
+
+// Listen listens for data on configured net.Conn. This method is blocking until
+// ClientConn.Close() is called or an unrecoverable error occours.
+func (c *ClientConn) Listen() error {
+	for {
+		outMsg, err := readSegment(c.conn)
+		if err != nil {
+			return fmt.Errorf("vici: read segment: %w", err)
+		}
+		switch outMsg.typ {
+		case stCMD_RESPONSE, stEVENT_CONFIRM:
+			c.responseChan <- outMsg
+		case stEVENT:
+			handler := c.eventHandlers[outMsg.name]
+			if handler != nil {
+				handler(outMsg.msg)
+			}
+		default:
+			return fmt.Errorf("vici: unprocessable message type '%s': raw message: %+v", outMsg.typ, outMsg)
+		}
+	}
 }
 
 func (c *ClientConn) Request(apiname string, concretePayload interface{}) (map[string]interface{}, error) {
@@ -124,26 +145,4 @@ func (c *ClientConn) UnregisterEvent(name string) error {
 	}
 	delete(c.eventHandlers, name)
 	return nil
-}
-
-func (c *ClientConn) readThread() {
-	for {
-		outMsg, err := readSegment(c.conn)
-		if err != nil {
-			c.lastError = err
-			return
-		}
-		switch outMsg.typ {
-		case stCMD_RESPONSE, stEVENT_CONFIRM:
-			c.responseChan <- outMsg
-		case stEVENT:
-			handler := c.eventHandlers[outMsg.name]
-			if handler != nil {
-				handler(outMsg.msg)
-			}
-		default:
-			c.lastError = fmt.Errorf("[Client.readThread] unknow msg type %d", outMsg.typ)
-			return
-		}
-	}
 }
