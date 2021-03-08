@@ -151,28 +151,14 @@ func main() {
 		}
 
 		if *enableReinitiator {
-			reinitiatorConn, err := net.Dial("unix", *socket)
-			if err != nil {
-				log.Errorf("Failed to establish socket connection to vici: %v", err)
-				os.Exit(1)
-			}
-			defer reinitiatorConn.Close()
-			reinitiatorClient := vici.NewClientConn(reinitiatorConn)
+			reinitiatorClient := viciClient(&shutdownWg, shutdown, componentDone, log.With("viciClient", "reinitiator"), *socket)
 			reinitiatorClient.ReadTimeout = 5 * time.Minute
-			defer reinitiatorClient.Close()
 
 			ikeSAStatusReceivers = append(ikeSAStatusReceivers, strongswan.NewReinitiator(reinitiatorClient, log.Base().With("name", "reinitiator")))
 		}
 
-		conn, err := net.Dial("unix", *socket)
-		if err != nil {
-			log.Errorf("Failed to establish socket connection to vici: %v", err)
-			os.Exit(1)
-		}
-		defer conn.Close()
-		client := vici.NewClientConn(conn)
+		client := viciClient(&shutdownWg, shutdown, componentDone, log.With("viciClient", "collector"), *socket)
 		client.ReadTimeout = 60 * time.Second
-		defer client.Close()
 
 		d := daemon.New(daemon.Configuration{
 			Reporter: prometheusReporter.Daemon(log.Base().With("name", "strongswan"), "strongswan"),
@@ -205,4 +191,50 @@ func main() {
 	} else {
 		log.Info("exited due to a component shutting down")
 	}
+}
+
+// viciClient returns a listening vici.ClientConn controlled by provided life
+// cycle channels.
+func viciClient(shutdownWg *sync.WaitGroup, shutdown chan struct{}, componentDone chan error, log log.Logger, socket string) *vici.ClientConn {
+	conn, err := net.Dial("unix", socket)
+	if err != nil {
+		log.Errorf("Failed to establish socket connection to vici on '%s': %v", socket, err)
+		os.Exit(1)
+	}
+	client := vici.NewClientConn(conn)
+
+	shutdownWg.Add(1)
+	go func() {
+		defer shutdownWg.Done()
+		log.Info("vici client shutdown listener started")
+		defer log.Info("vici client shutdown listener stopped")
+		<-shutdown
+
+		log.Info("Closing vici client listener")
+		err := client.Close()
+		if err != nil {
+			log.Errorf("Controlled close of vici client failed: %v", err)
+		}
+	}()
+
+	shutdownWg.Add(1)
+	go func() {
+		defer shutdownWg.Done()
+		log.Infof("vici client listening on %s", socket)
+		defer log.Info("vici client lister Go routine stopped")
+		err := client.Listen()
+		if err != nil {
+			// we don't know if Listen stopped due to a controlled shutdown or due
+			// to an underlying error. Log the error in the former case or report
+			// the component done if the shutdown is unexpected
+			select {
+			case componentDone <- fmt.Errorf("vici client listener stopped unexpectedly: %w", err):
+				return
+			default:
+				log.Infof("vici client listener stopped: %v", err)
+			}
+		}
+	}()
+
+	return client
 }

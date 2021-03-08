@@ -22,6 +22,29 @@ const (
 	stEVENT            segmentType = 7
 )
 
+func (s segmentType) String() string {
+	switch s {
+	case stCMD_REQUEST:
+		return "CMD_REQUEST"
+	case stCMD_RESPONSE:
+		return "CMD_RESPONSE"
+	case stCMD_UNKNOWN:
+		return "CMD_UNKNOWN"
+	case stEVENT_REGISTER:
+		return "EVENT_REGISTER"
+	case stEVENT_UNREGISTER:
+		return "EVENT_UNREGISTER"
+	case stEVENT_CONFIRM:
+		return "EVENT_CONFIRM"
+	case stEVENT_UNKNOWN:
+		return "EVENT_UNKNOWN"
+	case stEVENT:
+		return "EVENT"
+	default:
+		return fmt.Sprintf("unknown segment type: %d", s)
+	}
+}
+
 func (t segmentType) hasName() bool {
 	switch t {
 	case stCMD_REQUEST, stEVENT_REGISTER, stEVENT_UNREGISTER, stEVENT:
