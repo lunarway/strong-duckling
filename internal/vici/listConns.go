@@ -6,10 +6,9 @@ import (
 	"strings"
 )
 
-func (c *ClientConn) ListConns(ike string) (map[string]IKEConf, error) {
-	conns := map[string]IKEConf{}
+func (c *ClientConn) ListConns(ike string) (conns map[string]IKEConf, err error) {
+	conns = map[string]IKEConf{}
 	var eventErr error
-	var err error
 
 	err = c.RegisterEvent("list-conn", func(response map[string]interface{}) {
 		connsMap, err := mapConnections(response)
@@ -24,6 +23,18 @@ func (c *ClientConn) ListConns(ike string) (map[string]IKEConf, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error registering list-conn event: %w", err)
 	}
+
+	defer func() {
+		unregisterErr := c.UnregisterEvent("list-conn")
+		if unregisterErr != nil {
+			if err == nil {
+				err = unregisterErr
+				return
+			}
+			err = fmt.Errorf("unregister list-conn failed: %v: %w", unregisterErr, err)
+		}
+	}()
+
 	if eventErr != nil {
 		return nil, eventErr
 	}
@@ -36,11 +47,6 @@ func (c *ClientConn) ListConns(ike string) (map[string]IKEConf, error) {
 	_, err = c.Request("list-conns", reqMap)
 	if err != nil {
 		return nil, fmt.Errorf("error requesting list-conns: %w", err)
-	}
-
-	err = c.UnregisterEvent("list-conn")
-	if err != nil {
-		return nil, fmt.Errorf("error unregistering list-conns event: %w", err)
 	}
 
 	return conns, nil

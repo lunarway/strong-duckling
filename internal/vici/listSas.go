@@ -1,6 +1,7 @@
 package vici
 
 import (
+	"fmt"
 	"strconv"
 )
 
@@ -133,11 +134,11 @@ func (s *ChildSA) GetBytesOut() uint64 {
 // To be simple, list all clients that are connecting to this server .
 // A client is a sa.
 // Lists currently active IKE_SAs
-func (c *ClientConn) ListSas(ike string, ike_id string) (map[string]IkeSa, error) {
-	sas := map[string]IkeSa{}
+func (c *ClientConn) ListSas(ike string, ike_id string) (sas map[string]IkeSa, err error) {
+	sas = map[string]IkeSa{}
 	var eventErr error
 	//register event
-	err := c.RegisterEvent("list-sa", func(response map[string]interface{}) {
+	err = c.RegisterEvent("list-sa", func(response map[string]interface{}) {
 		sa := map[string]IkeSa{}
 		err := convertFromGeneral(response, &sa)
 		if err != nil {
@@ -151,6 +152,18 @@ func (c *ClientConn) ListSas(ike string, ike_id string) (map[string]IkeSa, error
 	if err != nil {
 		return nil, err
 	}
+
+	defer func() {
+		unregisterErr := c.UnregisterEvent("list-sa")
+		if unregisterErr != nil {
+			if err == nil {
+				err = unregisterErr
+				return
+			}
+			err = fmt.Errorf("unregister list-sa failed: %v: %w", unregisterErr, err)
+		}
+	}()
+
 	if eventErr != nil {
 		return nil, eventErr
 	}
@@ -163,10 +176,6 @@ func (c *ClientConn) ListSas(ike string, ike_id string) (map[string]IkeSa, error
 		inMap["ike_id"] = ike_id
 	}
 	_, err = c.Request("list-sas", inMap)
-	if err != nil {
-		return nil, err
-	}
-	err = c.UnregisterEvent("list-sa")
 	if err != nil {
 		return nil, err
 	}
