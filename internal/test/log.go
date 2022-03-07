@@ -4,7 +4,7 @@ import (
 	"io"
 	"testing"
 
-	"github.com/prometheus/common/log"
+	"github.com/go-kit/kit/log"
 )
 
 func NewLogger(t *testing.T) log.Logger {

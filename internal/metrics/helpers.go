@@ -3,8 +3,8 @@ package metrics
 import (
 	"strconv"
 
+	"github.com/go-kit/kit/log"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/common/log"
 )
 
 func newHelper(logger log.Logger) *helper {

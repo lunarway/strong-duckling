@@ -3,7 +3,7 @@ package tcpchecker
 import (
 	"time"
 
-	"github.com/prometheus/common/log"
+	"github.com/go-kit/kit/log"
 )
 
 type logReporter struct {

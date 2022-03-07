@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/prometheus/common/log"
+	"github.com/go-kit/kit/log"
 )
 
 type Whooper struct {

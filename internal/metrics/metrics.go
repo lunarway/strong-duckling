@@ -3,12 +3,12 @@ package metrics
 import (
 	"net/http"
 
+	"github.com/go-kit/kit/log"
 	daemonpkg "github.com/lunarway/strong-duckling/internal/daemon"
 	"github.com/lunarway/strong-duckling/internal/strongswan"
 	"github.com/lunarway/strong-duckling/internal/tcpchecker"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/prometheus/common/log"
 )
 
 func Register(serveMux *http.ServeMux) {

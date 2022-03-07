@@ -3,9 +3,9 @@ package metrics
 import (
 	"time"
 
+	"github.com/go-kit/kit/log"
 	daemonpkg "github.com/lunarway/strong-duckling/internal/daemon"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/common/log"
 )
 
 const (

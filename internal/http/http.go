@@ -3,7 +3,7 @@ package http
 import (
 	"net/http"
 
-	"github.com/prometheus/common/log"
+	"github.com/go-kit/kit/log"
 )
 
 func Define() *http.ServeMux {

@@ -3,8 +3,8 @@ package strongswan
 import (
 	"fmt"
 
+	"github.com/go-kit/kit/log"
 	"github.com/lunarway/strong-duckling/internal/vici"
-	"github.com/prometheus/common/log"
 )
 
 func Collect(client *vici.ClientConn, ikeSAStatusReceivers []IKESAStatusReceiver) {

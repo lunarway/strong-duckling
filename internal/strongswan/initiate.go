@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/go-kit/kit/log"
 	"github.com/lunarway/strong-duckling/internal/vici"
-	"github.com/prometheus/common/log"
 )
 
 var _ IKESAStatusReceiver = &Reinitiator{}
