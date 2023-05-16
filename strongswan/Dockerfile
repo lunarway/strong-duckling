@@ -1,5 +1,5 @@
-FROM docker.io/library/ubuntu:16.04
-ARG STRONGSWAN_VERSION=5.8.4
+FROM docker.io/library/ubuntu:22.04
+ARG STRONGSWAN_VERSION=5.9.10
 
 RUN \
   apt-get update &&\
@@ -15,7 +15,7 @@ RUN \
   supervisor \
   git
 
-RUN curl -sL https://deb.nodesource.com/setup_12.x | bash - &&\
+RUN curl -sL https://deb.nodesource.com/setup_19.x | bash - &&\
   apt-get install -y nodejs
 RUN npm install nodemon -g
 
@@ -31,6 +31,7 @@ RUN \
   tar xvzf strongswan-$STRONGSWAN_VERSION.tar.gz &&\
   cd strongswan-$STRONGSWAN_VERSION &&\
   ./configure \
+  --with-systemdsystemunitdir=/lib/systemd/system \
   --prefix=/usr \
   --sysconfdir=/etc \
   --enable-eap-mschapv2 \
