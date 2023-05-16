@@ -22,7 +22,7 @@ type helper struct {
 func (p *helper) setGauge(g *prometheus.GaugeVec, value, name string, labels childSALabels) {
 	f, err := strconv.ParseFloat(value, 64)
 	if err != nil {
-		p.logger.Errorf("metrics: failed to convert %s '%s' to float64: %v", name, value, err)
+		p.logger.Sugar().Errorf("metrics: failed to convert %s '%s' to float64: %v", name, value, err)
 		return
 	}
 	g.WithLabelValues(labels.values()...).Set(f)
@@ -76,7 +76,7 @@ func (p *helper) setHistogramByMin(h *prometheus.HistogramVec, value, name strin
 func (p *helper) maxValue(name, value string) (float64, bool) {
 	f, err := strconv.ParseFloat(value, 64)
 	if err != nil {
-		p.logger.Errorf("metrics: failed to convert %s '%s' to float64: %v", name, value, err)
+		p.logger.Sugar().Errorf("metrics: failed to convert %s '%s' to float64: %v", name, value, err)
 		return 0, false
 	}
 	previousValue, ok := p.previousValues[name]
@@ -93,7 +93,7 @@ func (p *helper) maxValue(name, value string) (float64, bool) {
 func (p *helper) minValue(name, value string) (float64, bool) {
 	f, err := strconv.ParseFloat(value, 64)
 	if err != nil {
-		p.logger.Errorf("metrics: failed to convert %s '%s' to float64: %v", name, value, err)
+		p.logger.Sugar().Errorf("metrics: failed to convert %s '%s' to float64: %v", name, value, err)
 		return 0, false
 	}
 	previousValue, ok := p.previousValues[name]
