@@ -1,4 +1,4 @@
-FROM docker.io/library/ubuntu:16.04
+FROM docker.io/library/ubuntu:23.10
 ARG STRONGSWAN_VERSION=5.8.4
 
 RUN \
