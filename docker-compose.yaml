@@ -6,7 +6,7 @@ services:
       dockerfile: Dockerfile
     privileged: true
     environment:
-      STRONGSWAN_VERSION: 5.8.1
+      STRONGSWAN_VERSION: 5.9.10
       VPN_LOCAL_PEER: strongswan1
       VPN_LOCAL_NETWORK: 10.101.0.1
       VPN_REMOTE_PEER: strongswan2
@@ -24,7 +24,7 @@ services:
       dockerfile: Dockerfile
     privileged: true
     environment:
-      STRONGSWAN_VERSION: 5.8.1
+      STRONGSWAN_VERSION: 5.9.10
       VPN_LOCAL_PEER: strongswan2
       VPN_LOCAL_NETWORK: 10.102.0.1
       VPN_REMOTE_PEER: strongswan1
@@ -38,7 +38,7 @@ services:
         target: /config
 
   prometheus:
-    image: prom/prometheus:v2.15.2
+    image: prom/prometheus:v2.44.0
     volumes:
       - type: bind
         source: ./prometheus.yml
