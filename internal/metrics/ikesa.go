@@ -7,7 +7,7 @@ import (
 	"github.com/lunarway/strong-duckling/internal/strongswan"
 	"github.com/lunarway/strong-duckling/internal/vici"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/common/log"
+	"go.uber.org/zap"
 )
 
 const (
@@ -15,7 +15,7 @@ const (
 )
 
 type ikeSA struct {
-	logger log.Logger
+	logger zap.Logger
 	helper *helper
 
 	establishedSeconds   *prometheus.GaugeVec
@@ -57,7 +57,7 @@ func (c childSALabels) values() []string {
 	return append(c.ikeSALabels.values(), c.localIPRange, c.remoteIPRange, c.childSAName)
 }
 
-func newIkeSA(logger log.Logger) *ikeSA {
+func newIkeSA(logger zap.Logger) *ikeSA {
 	return &ikeSA{
 		logger: logger,
 		helper: newHelper(logger),
@@ -159,7 +159,7 @@ func (i *ikeSA) getCollectors() []prometheus.Collector {
 
 func (p *ikeSA) IKESAStatus(ikeSAStatus strongswan.IKESAStatus) {
 	if ikeSAStatus.State == nil {
-		p.logger.Errorf("No SA for connection configuration: %#v", ikeSAStatus.Configuration)
+		p.logger.Sugar().Errorf("No SA for connection configuration: %#v", ikeSAStatus.Configuration)
 		return
 	}
 	ikeSALabels := ikeSALabels{
@@ -168,7 +168,7 @@ func (p *ikeSA) IKESAStatus(ikeSAStatus strongswan.IKESAStatus) {
 		remotePeerIP: ikeSAStatus.State.RemoteHost,
 	}
 	p.helper.setGaugeByMax(p.establishedSeconds, ikeSAStatus.State.EstablishedSeconds, "EstablishedSeconds", ikeSALabels)
-	p.logger.Infof("prometheusReporter: IKESAStatus: IKE_SA state: %v", ikeSAStatus.State.State)
+	p.logger.Sugar().Infof("prometheusReporter: IKESAStatus: IKE_SA state: %v", ikeSAStatus.State.State)
 	for _, child := range ikeSAStatus.State.ChildSAs {
 		labels := childSALabels{
 			ikeSALabels:   ikeSALabels,
@@ -176,7 +176,7 @@ func (p *ikeSA) IKESAStatus(ikeSAStatus strongswan.IKESAStatus) {
 			localIPRange:  strings.Join(child.LocalTrafficSelectors, ","),
 			remoteIPRange: strings.Join(child.RemoteTrafficSelectors, ","),
 		}
-		p.logger.Infof("prometheusReporter: IKESAStatus: IKE_SA child state: %v", child.State)
+		p.logger.Sugar().Infof("prometheusReporter: IKESAStatus: IKE_SA child state: %v", child.State)
 		p.helper.setCounterByMax(p.installs, child.InstallTimeSeconds, "InstallTimeSeconds", labels)
 		p.helper.setGauge(p.packetsIn, child.PacketsIn, "PacketsIn", labels)
 		p.helper.setGauge(p.packetsOut, child.PacketsOut, "PacketsOut", labels)
@@ -202,7 +202,7 @@ func (p *ikeSA) setRekeySeconds(conn vici.IKEConf, child vici.ChildSA, labels ch
 	}
 	connRekeyTimeSeconds, err := strconv.ParseFloat(conn.RekeyTimeSeconds, 64)
 	if err != nil {
-		p.logger.Errorf("metrics: failed to convert RekeyTimeSeconds '%s' to float64: %v", conn.RekeyTimeSeconds, err)
+		p.logger.Sugar().Errorf("metrics: failed to convert RekeyTimeSeconds '%s' to float64: %v", conn.RekeyTimeSeconds, err)
 		return
 	}
 	p.rekeySeconds.WithLabelValues(labels.values()...).Observe(connRekeyTimeSeconds - minRekeyTimeSeconds)

@@ -4,11 +4,11 @@ import (
 	"io"
 	"testing"
 
-	"github.com/prometheus/common/log"
+	"go.uber.org/zap"
 )
 
-func NewLogger(t *testing.T) log.Logger {
-	return log.NewLogger(&logger{t})
+func NewLogger(t *testing.T) zap.Logger {
+	return zap.NewProduction(&logger{t})
 }
 
 var _ io.Writer = &logger{}

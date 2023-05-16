@@ -20,7 +20,7 @@ import (
 	"github.com/lunarway/strong-duckling/internal/vici"
 	"github.com/lunarway/strong-duckling/internal/whooping"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/common/log"
+	"go.uber.org/zap"
 )
 
 var (
@@ -32,19 +32,22 @@ func main() {
 	defer func() {
 		os.Exit(exitCode)
 	}()
+	logger, _ := zap.NewProduction()
+	zap.ReplaceGlobals(logger)
+	defer logger.Sync()
+
 	flags := kingpin.New("strong-duckling", "A small sidekick to strongswan VPN")
 	listenAddress := flags.Flag("listen", "Address on which to expose metrics.").String()
 	whoopingAddress := flags.Flag("whooping", "Address on which to start whooping.").String()
 	tcpCheckerAddresses := flags.Flag("tcp-checker", "TCP address to check. Supports <address>:<port> or <name>:<address>:<port>").Strings()
 	enableReinitiator := flags.Flag("enable-reinitiator", "Enables re-initiation of connections when expected Security Associations are missing").Bool()
-	log.AddFlags(flags)
 	flags.HelpFlag.Short('h')
 	flags.Version(version)
 	socket := flags.Flag("vici-socket", "VICI (charon.vici) socket to connect to. Usually /var/run/charon.vici").String()
 	kingpin.MustParse(flags.Parse(os.Args[1:]))
 
 	if *enableReinitiator && len(*socket) == 0 {
-		log.Errorf("--enable-reinitiator requires --vici-socket to be set up")
+		zap.L().Sugar().Fatal("--enable-reinitiator requires --vici-socket to be set up")
 		os.Exit(1)
 	}
 
@@ -55,9 +58,9 @@ func main() {
 		whooper.RegisterListener(httpServer, fmt.Sprintf("http://localhost%s", *listenAddress))
 		metrics.Register(httpServer)
 	}
-	prometheusReporter, err := metrics.NewPrometheusReporter(prometheus.DefaultRegisterer, log.Base().With("name", "prometheusReporter"))
+	prometheusReporter, err := metrics.NewPrometheusReporter(prometheus.DefaultRegisterer, zap.L().With("name", "prometheusReporter"))
 	if err != nil {
-		log.Errorf("Failed to register metrics: %v", err)
+		zap.L().Sugar().Fatalf("Failed to register metrics: %v", err)
 		os.Exit(1)
 	}
 
@@ -66,7 +69,7 @@ func main() {
 	var shutdownWg sync.WaitGroup
 
 	if whoopingAddress != nil && *whoopingAddress != "" {
-		logger := log.With("name", "whooper")
+		logger := zap.L().Sugar().With("name", "whooper")
 		whoopDaemon := daemon.New(daemon.Configuration{
 			Reporter: prometheusReporter.Daemon(logger, "whopper"),
 			Interval: 1 * time.Second,
@@ -95,16 +98,16 @@ func main() {
 			portStr = values[1]
 			name = fmt.Sprintf("%s:%s", address, portStr)
 		} else {
-			log.Errorf("Could not understand tcp-checker %s", tcpCheckerAddress)
+			zap.L().Sugar().Errorf("Could not understand tcp-checker %s", tcpCheckerAddress)
 			os.Exit(1)
 		}
 		port, err := strconv.ParseInt(portStr, 10, 32)
 		if err != nil {
-			log.Errorf("Could not parse port %s as integer in tcp-checker %s. Error: %s", portStr, tcpCheckerAddress, err)
+			zap.L().Sugar().Errorf("Could not parse port %s as integer in tcp-checker %s. Error: %s", portStr, tcpCheckerAddress, err)
 			os.Exit(1)
 		}
 
-		logger := log.
+		logger := zap.L().Sugar().
 			With("type", "tcpchecker").
 			With("name", name).
 			With("address", address).
@@ -139,7 +142,7 @@ func main() {
 		signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 		select {
 		case sig := <-sigs:
-			log.Infof("Received os signal '%s'. Terminating...", sig)
+			zap.L().Sugar().Infof("Received os signal '%s'. Terminating...", sig)
 			componentDone <- nil
 		case <-shutdown:
 		}
@@ -151,17 +154,17 @@ func main() {
 		}
 
 		if *enableReinitiator {
-			reinitiatorClient := viciClient(&shutdownWg, shutdown, componentDone, log.With("viciClient", "reinitiator"), *socket)
+			reinitiatorClient := viciClient(&shutdownWg, shutdown, componentDone, zap.L().Sugar().With("viciClient", "reinitiator"), *socket)
 			reinitiatorClient.ReadTimeout = 5 * time.Minute
 
-			ikeSAStatusReceivers = append(ikeSAStatusReceivers, strongswan.NewReinitiator(reinitiatorClient, log.Base().With("name", "reinitiator")))
+			ikeSAStatusReceivers = append(ikeSAStatusReceivers, strongswan.NewReinitiator(reinitiatorClient, zap.L().Sugar().With("name", "reinitiator")))
 		}
 
-		client := viciClient(&shutdownWg, shutdown, componentDone, log.With("viciClient", "collector"), *socket)
+		client := viciClient(&shutdownWg, shutdown, componentDone, zap.L().Sugar().With("viciClient", "collector"), *socket)
 		client.ReadTimeout = 60 * time.Second
 
 		d := daemon.New(daemon.Configuration{
-			Reporter: prometheusReporter.Daemon(log.Base().With("name", "strongswan"), "strongswan"),
+			Reporter: prometheusReporter.Daemon(zap.L().Sugar().With("name", "strongswan"), "strongswan"),
 			Interval: 2 * time.Second,
 			Tick: func() {
 				strongswan.Collect(client, ikeSAStatusReceivers)
@@ -172,33 +175,33 @@ func main() {
 		go func() {
 			defer shutdownWg.Done()
 			d.Loop(shutdown)
-			log.Infof("vici strongswan checker daemon stopped. Terminating...")
+			zap.L().Sugar().Infof("vici strongswan checker daemon stopped. Terminating...")
 		}()
 	}
 
-	log.Infof("Strong duckling version %s", version)
+	zap.L().Sugar().Infof("Strong duckling version %s", version)
 	prometheusReporter.Info(version)
 
 	// this is blocking until some component fails of a signal is received
 	reason := <-componentDone
 
 	close(shutdown)
-	log.Info("waiting for all components to shutdown")
+	zap.L().Sugar().Info("waiting for all components to shutdown")
 	shutdownWg.Wait()
 	if reason != nil {
-		log.Errorf("exited due to error: %v", reason)
+		zap.L().Sugar().Errorf("exited due to error: %v", reason)
 		exitCode = 1
 	} else {
-		log.Info("exited due to a component shutting down")
+		zap.L().Sugar().Info("exited due to a component shutting down")
 	}
 }
 
 // viciClient returns a listening vici.ClientConn controlled by provided life
 // cycle channels.
-func viciClient(shutdownWg *sync.WaitGroup, shutdown chan struct{}, componentDone chan error, log log.Logger, socket string) *vici.ClientConn {
+func viciClient(shutdownWg *sync.WaitGroup, shutdown chan struct{}, componentDone chan error, log zap.Logger, socket string) *vici.ClientConn {
 	conn, err := net.Dial("unix", socket)
 	if err != nil {
-		log.Errorf("Failed to establish socket connection to vici on '%s': %v", socket, err)
+		zap.L().Sugar().Errorf("Failed to establish socket connection to vici on '%s': %v", socket, err)
 		os.Exit(1)
 	}
 	client := vici.NewClientConn(conn)
@@ -213,14 +216,14 @@ func viciClient(shutdownWg *sync.WaitGroup, shutdown chan struct{}, componentDon
 		log.Info("Closing vici client listener")
 		err := client.Close()
 		if err != nil {
-			log.Errorf("Controlled close of vici client failed: %v", err)
+			log.Sugar().Errorf("Controlled close of vici client failed: %v", err)
 		}
 	}()
 
 	shutdownWg.Add(1)
 	go func() {
 		defer shutdownWg.Done()
-		log.Infof("vici client listening on %s", socket)
+		log.Sugar().Infof("vici client listening on %s", socket)
 		defer log.Info("vici client lister Go routine stopped")
 		err := client.Listen()
 		if err != nil {
@@ -231,7 +234,7 @@ func viciClient(shutdownWg *sync.WaitGroup, shutdown chan struct{}, componentDon
 			case componentDone <- fmt.Errorf("vici client listener stopped unexpectedly: %w", err):
 				return
 			default:
-				log.Infof("vici client listener stopped: %v", err)
+				log.Sugar().Infof("vici client listener stopped: %v", err)
 			}
 		}
 	}()

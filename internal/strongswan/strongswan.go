@@ -4,18 +4,18 @@ import (
 	"fmt"
 
 	"github.com/lunarway/strong-duckling/internal/vici"
-	"github.com/prometheus/common/log"
+	"go.uber.org/zap"
 )
 
 func Collect(client *vici.ClientConn, ikeSAStatusReceivers []IKESAStatusReceiver) {
 	conns, err := connections(client)
 	if err != nil {
-		log.Errorf("Failed to get strongswan connections: %v", err)
+		zap.L().Sugar().Errorf("Failed to get strongswan connections: %v", err)
 		return
 	}
 	sas, err := ikeSas(client)
 	if err != nil {
-		log.Errorf("Failed to get strongswan sas: %v", err)
+		zap.L().Sugar().Errorf("Failed to get strongswan sas: %v", err)
 		return
 	}
 	collectSasStats(conns, sas, ikeSAStatusReceivers)
@@ -56,7 +56,7 @@ func collectSasStats(configs map[string]vici.IKEConf, sas map[string]vici.IkeSa,
 		case configFound && !ikeSAFound:
 			ikeSAStatuses = append(ikeSAStatuses, mapToIKESAStatus(ikeName, config, nil))
 		case !configFound && ikeSAFound:
-			log.Errorf("Unexpected IKE_SA Status for IKE Name %s: %#v", ikeName, ikeSA)
+			zap.L().Sugar().Errorf("Unexpected IKE_SA Status for IKE Name %s: %#v", ikeName, ikeSA)
 		}
 	}
 
@@ -101,7 +101,7 @@ func mapToIKESAStatus(ikeName string, config vici.IKEConf, ikeSA *vici.IkeSa) IK
 				Configuration: childConfig,
 			})
 		case !childConfigFound && childSAFound:
-			log.Errorf("Unexpected CHILD_SA Status for IKE Name %s and Child SA Name %s: %#v", ikeName, childName, ikeSA)
+			zap.L().Sugar().Errorf("Unexpected CHILD_SA Status for IKE Name %s and Child SA Name %s: %#v", ikeName, childName, ikeSA)
 		}
 	}
 	return status

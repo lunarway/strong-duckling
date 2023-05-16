@@ -5,7 +5,7 @@ import (
 
 	daemonpkg "github.com/lunarway/strong-duckling/internal/daemon"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/common/log"
+	"go.uber.org/zap"
 )
 
 const (
@@ -13,7 +13,7 @@ const (
 )
 
 type daemon struct {
-	logger log.Logger
+	logger zap.Logger
 
 	started *prometheus.CounterVec
 	stopped *prometheus.CounterVec
@@ -59,14 +59,14 @@ func (d *daemon) getCollectors() []prometheus.Collector {
 	}
 }
 
-func (d *daemon) DefaultDaemonReporter(logger log.Logger, name string) *daemonpkg.Reporter {
+func (d *daemon) DefaultDaemonReporter(logger zap.Logger, name string) *daemonpkg.Reporter {
 	return &daemonpkg.Reporter{
 		Started: func(duration time.Duration) {
-			logger.With("state", "started").Infof("%s daemon started with interval %v", name, duration)
+			logger.Sugar().With("state", "started").Infof("%s daemon started with interval %v", name, duration)
 			d.started.WithLabelValues(name, duration.String()).Inc()
 		},
 		Stopped: func() {
-			logger.With("state", "stopped").Infof("%s daemon stopped", name)
+			logger.Sugar().With("state", "stopped").Infof("%s daemon stopped", name)
 			d.stopped.WithLabelValues(name).Inc()
 		},
 		Skipped: func() {

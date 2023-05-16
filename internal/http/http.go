@@ -3,7 +3,7 @@ package http
 import (
 	"net/http"
 
-	"github.com/prometheus/common/log"
+	"go.uber.org/zap"
 )
 
 func Define() *http.ServeMux {
@@ -12,6 +12,6 @@ func Define() *http.ServeMux {
 }
 
 func Start(serveMux *http.ServeMux, listenAddress string) error {
-	log.Infof("Listening on %s", listenAddress)
+	zap.L().Sugar().Infof("Listening on %s", listenAddress)
 	return http.ListenAndServe(listenAddress, serveMux)
 }

@@ -4,10 +4,10 @@ import (
 	"strconv"
 
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/common/log"
+	"go.uber.org/zap"
 )
 
-func newHelper(logger log.Logger) *helper {
+func newHelper(logger zap.Logger) *helper {
 	return &helper{
 		previousValues: make(map[string]float64),
 		logger:         logger,
@@ -16,7 +16,7 @@ func newHelper(logger log.Logger) *helper {
 
 type helper struct {
 	previousValues map[string]float64
-	logger         log.Logger
+	logger         zap.Logger
 }
 
 func (p *helper) setGauge(g *prometheus.GaugeVec, value, name string, labels childSALabels) {

@@ -3,17 +3,17 @@ package tcpchecker
 import (
 	"time"
 
-	"github.com/prometheus/common/log"
+	"go.uber.org/zap"
 )
 
 type logReporter struct {
 	lastReport time.Time
 	lastOpen   bool
-	Logger     log.Logger
+	Logger     zap.Logger
 }
 
 func (r *logReporter) ReportPortCheck(report Report) {
-	l := r.Logger.With("report", report)
+	l := r.Logger.Sugar().With("report", report)
 	switch {
 	case report.Open && r.lastOpen:
 		// Port is still open - great
@@ -45,6 +45,6 @@ func (r *logReporter) ReportPortCheck(report Report) {
 	}
 }
 
-func LogReporter(logger log.Logger) Reporter {
+func LogReporter(logger zap.Logger) Reporter {
 	return &logReporter{Logger: logger}
 }

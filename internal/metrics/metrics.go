@@ -8,7 +8,7 @@ import (
 	"github.com/lunarway/strong-duckling/internal/tcpchecker"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/prometheus/common/log"
+	"go.uber.org/zap"
 )
 
 func Register(serveMux *http.ServeMux) {
@@ -25,7 +25,7 @@ const (
 
 type PrometheusReporter struct {
 	registry prometheus.Registerer
-	logger   log.Logger
+	logger   zap.Logger
 
 	version    *prometheus.GaugeVec
 	tcpChecker *tcpChecker
@@ -41,11 +41,11 @@ func (pr *PrometheusReporter) StrongSwan() strongswan.IKESAStatusReceiver {
 	return pr.ikeSA
 }
 
-func (pr *PrometheusReporter) Daemon(logger log.Logger, name string) *daemonpkg.Reporter {
+func (pr *PrometheusReporter) Daemon(logger zap.Logger, name string) *daemonpkg.Reporter {
 	return pr.daemon.DefaultDaemonReporter(logger, name)
 }
 
-func NewPrometheusReporter(reg prometheus.Registerer, logger log.Logger) (*PrometheusReporter, error) {
+func NewPrometheusReporter(reg prometheus.Registerer, logger zap.Logger) (*PrometheusReporter, error) {
 	r := PrometheusReporter{
 		registry: reg,
 		logger:   logger,
