@@ -38,7 +38,7 @@ services:
         target: /config
 
   prometheus:
-    image: prom/prometheus:v2.51.2
+    image: prom/prometheus:v2.53.0
     volumes:
       - type: bind
         source: ./prometheus.yml
